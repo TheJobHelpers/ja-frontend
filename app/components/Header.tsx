@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { usePathname } from "next/navigation";
 
 export default function Header() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
 
-  useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem("access_token");
-    setIsLoggedIn(!!token);
-  }, [pathname]); // Re-check on route change
+  // Derive login state from localStorage (re-evaluated on pathname change)
+  const isLoggedIn = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return !!localStorage.getItem("access_token");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -39,7 +39,7 @@ export default function Header() {
 
     // Redirect to login page
     setTimeout(() => {
-      window.location.href = "/login";
+      window.location.href = "/job-search/login";
     }, 500);
   };
 
@@ -47,7 +47,7 @@ export default function Header() {
     <header className="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-20">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <a href="/" className="flex items-center gap-2">
+          <a href="/job-search" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-tr from-blue-500 via-sky-400 to-emerald-400 shadow-[0_0_25px_rgba(56,189,248,0.75)]">
               <span className="text-xs font-black tracking-[0.18em] text-white flex items-center justify-center w-full text-center leading-none">
                 TJH
@@ -123,7 +123,7 @@ export default function Header() {
             </button>
           ) : pathname !== "/login" ? (
             <a
-              href="/login"
+              href="/job-search/login"
               className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-[11px] font-medium text-violet-300 transition hover:bg-violet-500/20 hover:border-violet-500/60"
             >
               <svg

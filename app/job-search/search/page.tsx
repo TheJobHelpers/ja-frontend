@@ -78,7 +78,7 @@ const COUNTRIES: Country[] = [
   { code: "CG", name: "Congo" },
   { code: "CD", name: "Congo (DRC)" },
   { code: "CR", name: "Costa Rica" },
-  { code: "CI", name: "Côte d'Ivoire" },
+  { code: "CI", name: "C\u00f4te d\u2019Ivoire" },
   { code: "HR", name: "Croatia" },
   { code: "CU", name: "Cuba" },
   { code: "CY", name: "Cyprus" },
@@ -241,7 +241,7 @@ export default function Home() {
   useLayoutEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) {
-      router.push("/login");
+      router.push("/job-search/login");
     }
   }, [router]);
 
@@ -503,10 +503,10 @@ export default function Home() {
             }
             if (streamError) break;
           }
-        } catch (streamErr: any) {
+        } catch (streamErr: unknown) {
           // Handle stream reading errors
           // Ignore AbortError - it's expected when user cancels or connection closes
-          if (streamErr.name !== "AbortError") {
+          if (streamErr instanceof Error && streamErr.name !== "AbortError") {
             streamError = streamErr;
           } else {
             // Clean up on abort
@@ -540,8 +540,9 @@ export default function Home() {
           setError("No jobs found. Try adjusting your search criteria.");
         }
       }
-    } catch (err: any) {
-      setError(err.message || "An error occurred while searching for jobs");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An error occurred while searching for jobs";
+      setError(message);
       setJobs([]);
       setSearchProgress(null);
     } finally {
@@ -1050,7 +1051,7 @@ export default function Home() {
                     Three engines, one UI
                   </p>
                   <p className="mt-1 text-[11px] text-zinc-400">
-                    Compare each engine's results for the same role.
+                    Compare each engine&apos;s results for the same role.
                   </p>
                 </div>
               </div>

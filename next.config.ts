@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/hr/:path*",
+        destination: "/job-search/:path*",
+        permanent: true,
+      },
+      {
+        source: "/hr",
+        destination: "/job-search",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

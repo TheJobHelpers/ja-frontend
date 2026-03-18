@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "./components/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "TJH Job Hunter",
-  description: "A polished job search UI for JSearch and Indeed.",
+  description: "Find your dream job with TJH Job Hunter — powered by LinkedIn, Indeed, and Google job search.",
 };
 
 export default function RootLayout({
@@ -35,19 +34,7 @@ export default function RootLayout({
             <div className="absolute -bottom-40 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-indigo-500/20 blur-3xl" />
           </div>
 
-          <Header />
-
-          <main>{children}</main>
-
-          <footer className="border-t border-white/5 bg-black/30 backdrop-blur-sm">
-            <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-4 text-xs text-zinc-500 sm:flex-row sm:px-6 lg:px-8">
-              <p>Built for technical job hunters.</p>
-              <p className="text-[11px]">
-                Powered by{" "}
-                <span className="font-medium text-zinc-300">TJH </span>{" "}
-              </p>
-            </div>
-          </footer>
+          {children}
         </div>
       </body>
     </html>

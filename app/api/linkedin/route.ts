@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("LinkedIn API error:", error);
     return NextResponse.json(
-      { error: "Failed to search LinkedIn jobs", details: error.message },
+      { error: "Failed to search LinkedIn jobs", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

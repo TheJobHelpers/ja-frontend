@@ -1,276 +1,323 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
+import { isClientAuthenticated, setClientToken } from "../lib/clientAuth";
 
-interface LoginFormData {
-  username: string;
-  password: string;
-}
-
-export default function LoginPage() {
+export default function ClientLoginPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState<LoginFormData>({
-    username: "",
-    password: "",
-  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Check if user is already logged in
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      // User is already authenticated, redirect to search page
-      router.push("/search");
+  useLayoutEffect(() => {
+    if (isClientAuthenticated()) {
+      router.push("/dashboard");
     }
   }, [router]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error when user starts typing
-    if (error) setError(null);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    setError(null);
+
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required.");
+      setLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
+    // Mock client credentials (used when backend is unavailable)
+    const MOCK_CLIENTS = [
+      { email: "client@tjh.com", password: "client123", name: "John Doe" },
+      { email: "demo@tjh.com", password: "demo123", name: "Demo User" },
+    ];
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      // Try API first
+      let token = "";
+      let tokenType = "bearer";
+      let apiWorked = false;
 
-      const data = await response.json();
+      try {
+        const response = await fetch("/api/client/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
 
-      if (!response.ok) {
-        throw new Error(data.detail || data.error || "Login failed");
+        if (response.ok) {
+          const data = await response.json();
+          token = data.access_token;
+          tokenType = data.token_type || "bearer";
+          apiWorked = true;
+        } else if (response.status === 401) {
+          throw new Error("Invalid email or password");
+        }
+      } catch (apiErr: unknown) {
+        // If it's an auth error, rethrow
+        if (apiErr instanceof Error && apiErr.message === "Invalid email or password") {
+          throw apiErr;
+        }
+        // Otherwise API is unreachable — fall through to mock
       }
 
-      // Store the token
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("token_type", data.token_type);
+      // Fallback: client-side mock auth
+      if (!apiWorked) {
+        const mockUser = MOCK_CLIENTS.find(
+          (u) => u.email === email && u.password === password
+        );
 
+        if (!mockUser) {
+          throw new Error("Invalid email or password");
+        }
+
+        // Generate a simple mock token
+        token = `mock_${btoa(JSON.stringify({ sub: email, name: mockUser.name, exp: Date.now() + 86400000 }))}`;
+      }
+
+      setClientToken(token, tokenType);
       setSuccess(true);
 
-      // Redirect to home page after successful login
       setTimeout(() => {
-        window.location.href = "/";
-      }, 1500);
-    } catch (err: any) {
-      setError(err.message || "An error occurred during login");
+        window.location.href = "/dashboard";
+      }, 1000);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "An error occurred during login";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const isFormValid = formData.username.trim() && formData.password.trim();
-
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-104px)] max-w-md flex-col items-center justify-center px-4 py-8 sm:px-6">
-      <div className="glass-panel relative w-full p-8 sm:p-10">
-        <div className="pointer-events-none absolute inset-0 -z-10 rounded-[1.25rem] border border-white/10" />
+    <div className="flex min-h-screen">
+      {/* ── Left: Feature Panel ─────────────────────────── */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-teal-950 to-cyan-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.15),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(6,182,212,0.12),transparent_50%)]" />
 
-        {/* HR Badge */}
-        <div className="mb-8 flex flex-col items-center gap-4">
-          <span className="pill-badge inline-flex items-center gap-2 px-4 py-1.5">
-            <span className="h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_18px_rgba(167,139,250,1)]" />
-            <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-zinc-200">
-              HR Portal
-            </span>
-          </span>
+        {/* Grid pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }}
+        />
 
-          <div className="text-center">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
-              Welcome Back
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16">
+          {/* Top: Logo */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+              <span className="text-xs font-black tracking-wider text-white">TJH</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white tracking-wide">TJH Job Hunter</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/80">Client Portal</p>
+            </div>
+          </div>
+
+          {/* Center: Hero */}
+          <div className="max-w-lg">
+            <h1 className="text-4xl font-bold leading-tight text-white xl:text-5xl">
+              Your career,{" "}
+              <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 bg-clip-text text-transparent">
+                streamlined.
+              </span>
             </h1>
-            <p className="mt-2 text-sm text-zinc-400">
-              Sign in to access the HR dashboard
+            <p className="mt-4 text-base leading-relaxed text-zinc-300/80 xl:text-lg">
+              Track your applications, search across multiple platforms, and
+              land your next role — all in one place.
             </p>
-          </div>
-        </div>
 
-        {/* Success Message */}
-        {success && (
-          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-950/60 px-4 py-3 text-center text-sm text-emerald-200 shadow-[0_15px_35px_rgba(6,78,59,0.65)]">
-            <div className="flex items-center justify-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,1)]" />
-              <span>Login successful! Redirecting...</span>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-950/60 px-4 py-3 text-center text-sm text-red-200 shadow-[0_15px_35px_rgba(127,29,29,0.65)]">
-            {error}
-          </div>
-        )}
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-3">
-            <label
-              htmlFor="username"
-              className="flex items-center justify-between text-xs font-medium text-zinc-200"
-            >
-              <span>Username</span>
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                <svg
-                  className="h-4 w-4 text-zinc-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
+            {/* Feature pills */}
+            <div className="mt-8 flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2">
+                <svg className="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
+                <span className="text-xs font-medium text-emerald-200">Multi-source Search</span>
               </div>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                placeholder="Enter your username"
-                className="w-full rounded-lg border border-white/30 bg-zinc-700/90 py-3 pl-10 pr-4 text-sm text-zinc-50 outline-none ring-0 transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/50"
-                disabled={loading || success}
-                autoComplete="username"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label
-              htmlFor="password"
-              className="flex items-center justify-between text-xs font-medium text-zinc-200"
-            >
-              <span>Password</span>
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                <svg
-                  className="h-4 w-4 text-zinc-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
+              <div className="flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/10 px-4 py-2">
+                <svg className="h-4 w-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
+                <span className="text-xs font-medium text-teal-200">Application Tracker</span>
               </div>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Enter your password"
-                className="w-full rounded-lg border border-white/30 bg-zinc-700/90 py-3 pl-10 pr-4 text-sm text-zinc-50 outline-none ring-0 transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/50"
-                disabled={loading || success}
-                autoComplete="current-password"
-              />
+              <div className="flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2">
+                <svg className="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-xs font-medium text-cyan-200">Resume-powered</span>
+              </div>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={!isFormValid || loading || success}
-            className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-violet-400/60 bg-violet-600/80 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(139,92,246,0.5)] transition hover:bg-violet-600 hover:border-violet-400/80 hover:shadow-[0_15px_40px_rgba(139,92,246,0.6)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-violet-600/80"
-          >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                <span>Signing in...</span>
-              </span>
-            ) : success ? (
-              <span className="inline-flex items-center gap-2">
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <span>Success!</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,1)]" />
-                <span>Sign In</span>
-              </span>
-            )}
-          </button>
-        </form>
-
-        {/* Footer */}
-        <div className="mt-8 flex items-center justify-center">
-          <p className="text-[11px] text-zinc-500">
-            Internal HR Team Access Only
-          </p>
+          {/* Bottom: Stats / social proof */}
+          <div className="flex items-center gap-6 border-t border-white/10 pt-6">
+            <div>
+              <p className="text-2xl font-bold text-white">3</p>
+              <p className="text-[11px] text-zinc-400">Search engines</p>
+            </div>
+            <div className="h-8 w-px bg-white/10" />
+            <div>
+              <p className="text-2xl font-bold text-white">24/7</p>
+              <p className="text-[11px] text-zinc-400">Access</p>
+            </div>
+            <div className="h-8 w-px bg-white/10" />
+            <div>
+              <p className="text-2xl font-bold text-white">Free</p>
+              <p className="text-[11px] text-zinc-400">For TJH clients</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Security Notice */}
-      <div className="mt-6 flex items-center gap-2 text-[11px] text-zinc-500">
-        <svg
-          className="h-3.5 w-3.5 text-emerald-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-          />
-        </svg>
-        <span>Secured connection • TJH HR Portal</span>
+      {/* ── Right: Login Form ───────────────────────────── */}
+      <div className="flex w-full items-center justify-center px-6 py-12 lg:w-[45%] lg:px-12">
+        <div className="w-full max-w-sm">
+          {/* Mobile-only branding */}
+          <div className="mb-8 text-center lg:hidden">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_0_25px_rgba(16,185,129,0.4)]">
+              <span className="text-sm font-black tracking-wider text-white">TJH</span>
+            </div>
+            <h1 className="text-xl font-bold text-zinc-100">TJH Job Hunter</h1>
+            <p className="text-xs text-emerald-400/70 uppercase tracking-widest mt-1">Client Portal</p>
+          </div>
+
+          {/* Heading */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-zinc-100">Sign in</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              Access your job search dashboard
+            </p>
+          </div>
+
+          {/* Messages */}
+          {success && (
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Login successful! Redirecting...
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {error}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label htmlFor="client-email" className="block text-sm font-medium text-zinc-300">
+                Email
+              </label>
+              <input
+                type="email"
+                id="client-email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                autoComplete="email"
+                disabled={loading || success}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="client-password" className="block text-sm font-medium text-zinc-300">
+                Password
+              </label>
+              <input
+                type="password"
+                id="client-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={loading || success}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || success || !email.trim() || !password.trim()}
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(16,185,129,0.3)] transition hover:from-emerald-400 hover:to-teal-400 hover:shadow-[0_8px_30px_rgba(16,185,129,0.4)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Signing in...
+                </span>
+              ) : success ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Redirecting...
+                </span>
+              ) : (
+                "Sign in to your account"
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-800" />
+            <span className="text-[11px] text-zinc-500">Need access?</span>
+            <div className="h-px flex-1 bg-zinc-800" />
+          </div>
+
+          <p className="text-center text-xs text-zinc-500">
+            This portal is for TJH clients only.{" "}
+            <span className="text-emerald-400/70">Contact your TJH representative</span> to
+            get your login credentials.
+          </p>
+
+          {/* Dev credentials hint */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-4 py-3 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500 mb-1">
+                Dev Credentials
+              </p>
+              <p className="text-xs text-zinc-400">
+                <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-emerald-300">client@tjh.com</code>
+                {" / "}
+                <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-emerald-300">client123</code>
+              </p>
+            </div>
+          )}
+
+          {/* Bottom */}
+          <p className="mt-8 text-center text-[11px] text-zinc-600">
+            Powered by TJH Job Hunter
+          </p>
+        </div>
       </div>
     </div>
   );

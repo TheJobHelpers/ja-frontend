@@ -42,10 +42,10 @@ export async function POST(request: NextRequest) {
 
     // Return the token response
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Auth API error:", error);
     return NextResponse.json(
-      { error: "Failed to authenticate", details: error.message },
+      { error: "Failed to authenticate", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

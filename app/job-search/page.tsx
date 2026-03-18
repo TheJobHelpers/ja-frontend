@@ -3,12 +3,16 @@
 import { useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function RootPage() {
+export default function HrHome() {
   const router = useRouter();
 
   useLayoutEffect(() => {
-    // Root page redirects to HR job search portal temporarily
-    router.push("/job-search");
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      router.push("/job-search/search");
+    } else {
+      router.push("/job-search/login");
+    }
   }, [router]);
 
   return (

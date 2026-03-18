@@ -4,7 +4,6 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the authorization header from the request
     const authHeader = request.headers.get("authorization");
 
     if (!authHeader) {
@@ -14,30 +13,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Forward the logout request to the backend
-    const response = await fetch(`${BACKEND_URL}/auth/logout`, {
+    const response = await fetch(`${BACKEND_URL}/api/client/auth/logout`, {
       method: "POST",
-      headers: {
-        Authorization: authHeader,
-      },
+      headers: { Authorization: authHeader },
     });
 
     const data = await response.json();
 
     if (!response.ok) {
       return NextResponse.json(
-        {
-          error: data.detail || "Logout failed",
-          detail: data.detail,
-        },
+        { error: data.detail || "Logout failed" },
         { status: response.status }
       );
     }
 
-    // Return success response
     return NextResponse.json(data);
   } catch (error: unknown) {
-    console.error("Logout API error:", error);
+    console.error("Client auth logout error:", error);
     return NextResponse.json(
       { error: "Failed to logout", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
