@@ -299,7 +299,7 @@ export default function ClientSearchPage() {
       try { setSearchHistory(JSON.parse(localHistory)); } catch { /* ignore */ }
     }
 
-    // 2. Fetch real quota + history from backend asynchronously
+    // 2. Fetch real quota + history + existing jobs from backend asynchronously
     (async () => {
       try {
         const { getClientToken } = await import("../../lib/clientAuth");
@@ -313,6 +313,27 @@ export default function ClientSearchPage() {
           const stats = await statsRes.json();
           setAssignmentsUsed(stats.assignments_used ?? 0);
           setMaxAssignments(stats.max_assignments ?? 3);
+        }
+
+        // Pre-load existing assigned jobs to populate the "Assigned ✓" state
+        // and prevent duplicates
+        const jobsRes = await fetch("/api/client/jobs", { headers });
+        if (jobsRes.ok) {
+          const jobsData = await jobsRes.json();
+          const existingJobs = Array.isArray(jobsData)
+            ? jobsData
+            : Array.isArray(jobsData?.jobs)
+            ? jobsData.jobs
+            : Array.isArray(jobsData?.data)
+            ? jobsData.data
+            : [];
+          // Build a set of "title|company" keys for already-assigned jobs
+          const alreadyAssigned = new Set<string>();
+          existingJobs.forEach((j: any) => {
+            const key = `${(j.job_title || "").toLowerCase()}|${(j.company || "").toLowerCase()}`;
+            alreadyAssigned.add(key);
+          });
+          setAssignedJobIds(alreadyAssigned);
         }
 
         // Search history from backend
@@ -380,8 +401,20 @@ export default function ClientSearchPage() {
     localStorage.setItem("tjh_search_cache", JSON.stringify({ jobs: item.jobs, service: item.service, formData: item.formData }));
   };
 
+  // Helper to build a dedup key from a search result job
+  const jobKey = (job: Job) =>
+    `${(job.title || "").toLowerCase()}|${(job.company || "").toLowerCase()}`;
+
   const handleAssignToJA = async (job: Job) => {
     if (assignmentsUsed >= maxAssignments) return;
+
+    // Duplicate check
+    const key = jobKey(job);
+    if (assignedJobIds.has(key)) {
+      alert("This role has already been assigned to the JA team.");
+      return;
+    }
+
     setAssigningJobId(job.id);
     try {
       const { getClientToken } = await import("../../lib/clientAuth");
@@ -405,7 +438,6 @@ export default function ClientSearchPage() {
       });
 
       if (res.status === 403) {
-        // Quota exceeded — backend enforces this as source of truth
         const data = await res.json().catch(() => ({}));
         alert(data.detail ?? `You've reached your weekly limit of ${maxAssignments} job assignments. Your limit resets next Monday.`);
         return;
@@ -414,7 +446,7 @@ export default function ClientSearchPage() {
       if (!res.ok) throw new Error("Failed to assign job");
 
       setAssignmentsUsed(prev => prev + 1);
-      setAssignedJobIds(prev => new Set([...prev, job.id]));
+      setAssignedJobIds(prev => new Set([...prev, key]));
       alert("✅ Submitted! Our JA team will review this opportunity for you.");
     } catch (err) {
       console.error(err);
@@ -1371,10 +1403,10 @@ export default function ClientSearchPage() {
                       )}
 
                       <button
-                        disabled={assignmentsUsed >= maxAssignments || assigningJobId === job.id || assignedJobIds.has(job.id)}
+                        disabled={assignmentsUsed >= maxAssignments || assigningJobId === job.id || assignedJobIds.has(jobKey(job))}
                         onClick={() => handleAssignToJA(job)}
                         className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${
-                          assignedJobIds.has(job.id)
+                          assignedJobIds.has(jobKey(job))
                             ? "bg-emerald-900/30 border border-emerald-400/30 text-emerald-400 cursor-default"
                             : assignmentsUsed >= maxAssignments
                             ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
@@ -1386,7 +1418,7 @@ export default function ClientSearchPage() {
                             <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
                             Requesting...
                           </>
-                        ) : assignedJobIds.has(job.id) ? (
+                        ) : assignedJobIds.has(jobKey(job)) ? (
                           <>
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                             Assigned ✓

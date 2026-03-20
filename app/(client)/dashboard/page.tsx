@@ -45,8 +45,14 @@ export default function DashboardPage() {
           setUserName(userRes.full_name.split(" ")[0]);
         }
         
-        // Handle jobs array (direct array or nested in data)
-        const jobsArray = Array.isArray(jobsRes) ? jobsRes : jobsRes?.data && Array.isArray(jobsRes.data) ? jobsRes.data : [];
+        // Handle jobs array (direct array, { jobs: [...] }, or { data: [...] })
+        const jobsArray = Array.isArray(jobsRes)
+          ? jobsRes
+          : Array.isArray(jobsRes?.jobs)
+          ? jobsRes.jobs
+          : Array.isArray(jobsRes?.data)
+          ? jobsRes.data
+          : [];
         setJobs(jobsArray);
         
       } catch (err) {

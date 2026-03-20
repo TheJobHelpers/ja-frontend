@@ -55,6 +55,23 @@ function getPastWeeks(count: number): { id: string; label: string }[] {
 const CURRENT_WEEK_ID = getCurrentWeekId();
 const PAST_WEEKS = getPastWeeks(4);
 
+// Time-ago helper
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function getInitials(name: string): string {
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
 // ─── Add Manual Job Modal ──────────────────────────────────────
 function AddManualJobModal({
   clientId, clientName, onClose, onAdd,
@@ -188,8 +205,8 @@ export default function AssignmentsPipelinePage() {
       // For current week: load ALL jobs (queued + assigned) regardless of week_id
       // so client-submitted jobs with no week_id still appear
       const query = weekId === CURRENT_WEEK_ID
-        ? `/jobs?client_id=${clientId}`
-        : `/jobs?client_id=${clientId}&week_id=${weekId}`;
+        ? `/jobs?clientId=${clientId}`
+        : `/jobs?clientId=${clientId}&week_id=${weekId}`;
       const data = await jaApi.get<{ jobs: Job[] }>(query);
       setJobs(data.jobs || []);
     } catch (err) {
@@ -257,8 +274,8 @@ export default function AssignmentsPipelinePage() {
       {/* ─── Left Pane: Client List ────────────────────────────── */}
       <div className="w-80 shrink-0 flex flex-col rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
         <div className="p-4 border-b border-zinc-800 bg-zinc-900/40">
-          <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest mb-1.5">Weekly Tracker</h2>
-          <p className="text-[10px] text-zinc-500">Select a client to process their jobs.</p>
+          <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest mb-1.5">Client Pipeline</h2>
+          <p className="text-[10px] text-zinc-500">{clients.length} clients · Week {CURRENT_WEEK_ID.split("-W")[1]}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -266,21 +283,37 @@ export default function AssignmentsPipelinePage() {
             const isSelected = client.id === selectedClientId;
             const cLimit = getClientLimit(client.created_at);
             const isVeteran = cLimit === 80;
+            const initials = getInitials(client.name);
 
             return (
               <button
                 key={client.id}
                 onClick={() => setSelectedClientId(client.id)}
-                className={`w-full text-left rounded-xl p-3 transition ${
-                  isSelected ? "bg-violet-500/10 border border-violet-500/30" : "border border-transparent hover:bg-zinc-900/60"
+                className={`w-full text-left rounded-xl p-3 transition group ${
+                  isSelected ? "bg-violet-500/10 border border-violet-500/30 shadow-lg shadow-violet-500/5" : "border border-transparent hover:bg-zinc-900/60 hover:border-zinc-800/50"
                 }`}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <span className={`text-sm font-bold ${isSelected ? "text-violet-300" : "text-zinc-200"}`}>{client.name}</span>
-                  {isVeteran && <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500/70 bg-amber-500/10 px-1.5 py-0.5 rounded">Veteran +</span>}
-                </div>
-                <div className="flex justify-between items-center text-[10px] text-zinc-500 mb-1">
-                  <span>Max {cLimit} / wk</span>
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className={`relative h-9 w-9 shrink-0 rounded-lg flex items-center justify-center text-xs font-black ${
+                    isSelected ? "bg-violet-500/20 text-violet-300" : "bg-zinc-800 text-zinc-400 group-hover:bg-zinc-700"
+                  }`}>
+                    {initials}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold truncate ${
+                        isSelected ? "text-violet-300" : "text-zinc-200"
+                      }`}>{client.name}</span>
+                      {isVeteran && (
+                        <span className="text-[8px] font-black uppercase tracking-wider text-amber-500/70 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">VET</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-500">
+                      <span>Max {cLimit}/wk</span>
+                    </div>
+                  </div>
                 </div>
               </button>
             );
@@ -300,14 +333,20 @@ export default function AssignmentsPipelinePage() {
             {/* Header / Week Selector */}
             <div className="p-5 border-b border-zinc-800 bg-zinc-900/40">
               <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h1 className="text-xl font-bold text-zinc-100 flex items-center gap-3">
-                    {selectedClient.name}&apos;s Pipeline
-                  </h1>
-                  <p className="text-[11px] text-zinc-400 mt-1.5">Track and manage weekly application flow.</p>
+                <div className="flex items-center gap-3">
+                  {/* Client Initials Avatar */}
+                  <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-sm font-black text-violet-300">
+                    {getInitials(selectedClient.name)}
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-zinc-100">
+                      {selectedClient.name}&apos;s Pipeline
+                    </h1>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">Track and manage weekly application flow.</p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowAddModal(true)} className="rounded-xl border border-zinc-700 bg-zinc-800/80 px-4 py-2 text-[11px] font-bold text-zinc-300 hover:text-white transition">
+                  <button onClick={() => setShowAddModal(true)} className="rounded-xl border border-zinc-700 bg-zinc-800/80 px-4 py-2 text-[11px] font-bold text-zinc-300 hover:text-white hover:border-zinc-600 hover:bg-zinc-700/80 transition">
                     ➕ Add Manual Job
                   </button>
                   <select
@@ -322,10 +361,23 @@ export default function AssignmentsPipelinePage() {
               </div>
 
               {selectedWeek === CURRENT_WEEK_ID && (
-                <div className="flex justify-between items-center pt-2">
-                  <div className="flex gap-6">
-                    <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">Limit: <span className="text-zinc-200 ml-1">{limit} jobs</span></div>
-                    <div className="text-[10px] uppercase tracking-wider font-bold text-violet-400/80">Batch Size: <span className="text-violet-300 ml-1">{batchJobs.length} / 15</span></div>
+                <div className="flex justify-between items-center pt-3 border-t border-zinc-800/50">
+                  <div className="flex gap-4">
+                    {/* Visual mini-gauges */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">Limit</span>
+                      <div className="h-1.5 w-16 rounded-full bg-zinc-800 overflow-hidden">
+                        <div className="h-full rounded-full bg-zinc-400 transition-all" style={{ width: `${Math.min((jobs.length / limit) * 100, 100)}%` }} />
+                      </div>
+                      <span className="text-[10px] font-bold text-zinc-300">{jobs.length}/{limit}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-violet-400/80">Batch</span>
+                      <div className="h-1.5 w-16 rounded-full bg-zinc-800 overflow-hidden">
+                        <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${Math.min((batchJobs.length / 15) * 100, 100)}%` }} />
+                      </div>
+                      <span className="text-[10px] font-bold text-violet-300">{batchJobs.length}/15</span>
+                    </div>
                   </div>
                   <button
                     onClick={archiveCompletedBatch}
@@ -360,29 +412,44 @@ export default function AssignmentsPipelinePage() {
                     <span className="bg-zinc-800 text-zinc-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{queuedJobs.length}</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    {queuedJobs.length === 0 ? <p className="text-[11px] text-zinc-500 text-center py-10 italic">Queue is empty.</p> : queuedJobs.map(job => (
-                      <div key={job.id} className={`group rounded-xl border p-3 hover:border-zinc-700 transition ${
+                    {queuedJobs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="h-10 w-10 rounded-full bg-zinc-800/50 flex items-center justify-center mb-3">
+                          <svg className="h-5 w-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 font-medium">Queue is empty</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">Add jobs manually or wait for client requests</p>
+                      </div>
+                    ) : queuedJobs.map(job => (
+                      <div key={job.id} className={`group rounded-xl border p-3 transition hover:shadow-md ${
                         job.source === "client_selected"
-                          ? "border-sky-500/30 bg-sky-950/20"
-                          : "border-zinc-800 bg-zinc-900/60"
+                          ? "border-sky-500/30 bg-sky-950/20 hover:border-sky-400/50"
+                          : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
                       }`}>
-                        <div className="flex justify-between items-start mb-1">
+                        <div className="flex justify-between items-start mb-1.5">
                           <div className="flex-1 min-w-0">
                             {job.source === "client_selected" && (
-                              <div className="mb-1">
+                              <div className="mb-1.5">
                                 <span className="inline-flex items-center gap-1 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded">
                                   ⭐ Client Request
                                 </span>
                               </div>
                             )}
                             <h4 className="text-xs font-bold text-zinc-200 truncate">{job.job_title}</h4>
+                            <p className="text-[10px] text-zinc-500 mt-0.5">{job.company} · {job.location}</p>
                           </div>
-                          <span className="text-[10px] font-bold text-emerald-400/80 shrink-0 ml-2">{job.match_score}%</span>
+                          <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                            {job.match_score > 0 && <span className="text-[10px] font-bold text-emerald-400/80">{job.match_score}%</span>}
+                            {job.created_at && <span className="text-[9px] text-zinc-600">{timeAgo(job.created_at)}</span>}
+                          </div>
                         </div>
-                        <p className="text-[10px] text-zinc-500 mb-2">{job.company} · {job.location}</p>
-                        <div className="flex gap-2">
-                          {job.apply_link && <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded border border-zinc-700/50 bg-zinc-800/50 py-1 text-[9px] font-bold text-zinc-400 hover:text-zinc-200">View Link</a>}
-                          <button onClick={() => updateJobStatus(job.id, "assigned")} disabled={batchJobs.length >= 15} className="flex-1 rounded bg-violet-500/15 border border-violet-500/20 py-1 text-[9px] font-bold text-violet-300 hover:bg-violet-500/30 disabled:opacity-50 transition">→ Add to Batch</button>
+                        {/* Description preview */}
+                        {job.description && (
+                          <p className="text-[10px] leading-relaxed text-zinc-500 line-clamp-2 mb-2 mt-1">{job.description.substring(0, 120)}{job.description.length > 120 ? "…" : ""}</p>
+                        )}
+                        <div className="flex gap-2 mt-2">
+                          {job.apply_link && <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded-lg border border-zinc-700/50 bg-zinc-800/50 py-1.5 text-[9px] font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">View Link ↗</a>}
+                          <button onClick={() => updateJobStatus(job.id, "assigned")} disabled={batchJobs.length >= 15} className="flex-1 rounded-lg bg-violet-500/15 border border-violet-500/20 py-1.5 text-[9px] font-bold text-violet-300 hover:bg-violet-500/30 disabled:opacity-50 transition">→ Add to Batch</button>
                         </div>
                       </div>
                     ))}
@@ -392,17 +459,39 @@ export default function AssignmentsPipelinePage() {
                 {/* 2. Active Batch */}
                 <div className="flex-1 flex flex-col rounded-xl border border-violet-500/20 bg-violet-500/5 overflow-hidden ring-1 ring-violet-500/10 shadow-lg shadow-violet-500/5">
                   <div className="p-3 border-b border-violet-500/20 bg-violet-500/10 flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-violet-300 uppercase tracking-wider">2. Active Batch</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold text-violet-300 uppercase tracking-wider">2. Active Batch</h3>
+                      {/* Mini progress bar */}
+                      <div className="h-1 w-10 rounded-full bg-violet-900/50 overflow-hidden">
+                        <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${Math.min((batchJobs.length / 15) * 100, 100)}%` }} />
+                      </div>
+                    </div>
                     <span className="bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2 py-0.5 rounded-full">{batchJobs.length}</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    {batchJobs.length === 0 ? <p className="text-[10px] text-violet-500/50 text-center py-10 italic">No active batch.</p> : batchJobs.map(job => (
-                      <div key={job.id} className="rounded-xl border border-violet-500/20 bg-zinc-950/50 p-3 shadow-sm">
-                        <h4 className="text-xs font-bold text-zinc-100 mb-0.5">{job.job_title}</h4>
+                    {batchJobs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center mb-3">
+                          <svg className="h-5 w-5 text-violet-500/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                        </div>
+                        <p className="text-[11px] text-violet-400/50 font-medium">No active batch</p>
+                        <p className="text-[10px] text-violet-500/30 mt-1">← Move jobs from the queue to start</p>
+                      </div>
+                    ) : batchJobs.map(job => (
+                      <div key={job.id} className="rounded-xl border border-violet-500/20 bg-zinc-950/50 p-3 shadow-sm hover:border-violet-400/30 transition">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="flex-1 min-w-0">
+                            {job.source === "client_selected" && (
+                              <span className="inline-flex items-center gap-1 bg-sky-500/10 text-sky-400 text-[7px] font-black uppercase tracking-widest px-1 py-0.5 rounded mb-1">Client</span>
+                            )}
+                            <h4 className="text-xs font-bold text-zinc-100 truncate">{job.job_title}</h4>
+                          </div>
+                          {job.created_at && <span className="text-[9px] text-zinc-600 shrink-0 ml-2">{timeAgo(job.created_at)}</span>}
+                        </div>
                         <p className="text-[10px] text-zinc-400 mb-3">{job.company} · {job.location}</p>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => updateJobStatus(job.id, "queued")} className="shrink-0 p-1.5 rounded-lg border border-red-500/20 text-red-400/70 hover:bg-red-500/10"><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                          {job.apply_link && <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded-lg border border-zinc-700 bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700">Apply ↗</a>}
+                          <button onClick={() => updateJobStatus(job.id, "queued")} className="shrink-0 p-1.5 rounded-lg border border-red-500/20 text-red-400/70 hover:bg-red-500/10 transition"><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                          {job.apply_link && <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded-lg border border-zinc-700 bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700 transition">Apply ↗</a>}
                           <button onClick={() => updateJobStatus(job.id, "applied")} className="flex-1 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 py-1.5 text-[10px] font-bold text-white shadow shadow-violet-500/20 hover:from-violet-400 hover:to-purple-500 transition">✓ Mark Applied</button>
                         </div>
                       </div>
@@ -410,20 +499,36 @@ export default function AssignmentsPipelinePage() {
                   </div>
                 </div>
 
-                {/* 3. Applied */}
+                {/* 3. Applied / Completed */}
                 <div className="flex-1 flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
                   <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
                     <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5"><svg className="h-3.5 w-3.5 text-emerald-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>3. Applied</h3>
                     <span className="bg-zinc-800 text-zinc-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{completedJobs.length}</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    {completedJobs.length === 0 ? <p className="text-[11px] text-zinc-600 text-center py-10 italic">Empty.</p> : completedJobs.map(job => (
+                    {completedJobs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
+                          <svg className="h-5 w-5 text-emerald-500/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 font-medium">No applications yet</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">← Mark batch jobs as applied</p>
+                      </div>
+                    ) : completedJobs.map(job => (
                       <div key={job.id} className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 hover:border-zinc-700 transition">
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="text-xs font-bold text-zinc-200">{job.job_title}</h4>
-                          <span className={`inline-flex items-center px-1.5 text-[9px] font-bold uppercase tracking-wider rounded border ${STATUS_COLORS[job.status] || STATUS_COLORS.applied}`}>{job.status}</span>
+                          <h4 className="text-xs font-bold text-zinc-200 truncate flex-1 min-w-0">{job.job_title}</h4>
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded border shrink-0 ml-2 ${STATUS_COLORS[job.status] || STATUS_COLORS.applied}`}>
+                            <span className={`h-1 w-1 rounded-full ${
+                              job.status === "interviewing" ? "bg-amber-400" :
+                              job.status === "offer" ? "bg-emerald-400" :
+                              job.status === "rejected" ? "bg-red-400" : "bg-blue-400"
+                            }`} />
+                            {job.status}
+                          </span>
                         </div>
-                        <p className="text-[10px] text-zinc-500">{job.company}</p>
+                        <p className="text-[10px] text-zinc-500">{job.company} · {job.location}</p>
+                        {job.created_at && <p className="text-[9px] text-zinc-600 mt-1">{timeAgo(job.created_at)}</p>}
                       </div>
                     ))}
                   </div>

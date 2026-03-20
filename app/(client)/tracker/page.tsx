@@ -44,7 +44,14 @@ export default function TrackerPage() {
       }
       try {
         const res = await apiGet<any>("/api/client/jobs", token);
-        const data = Array.isArray(res) ? res : res?.data && Array.isArray(res.data) ? res.data : [];
+        // Backend may return { jobs: [...] }, { data: [...] }, or a direct array
+        const data = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.jobs)
+          ? res.jobs
+          : Array.isArray(res?.data)
+          ? res.data
+          : [];
         setJobs(data);
       } catch (e) {
         console.error("Failed to fetch jobs", e);
