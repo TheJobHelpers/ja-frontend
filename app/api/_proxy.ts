@@ -41,6 +41,11 @@ export async function proxyRequest(
       signal: AbortSignal.timeout(timeout),
     });
 
+    // 204 No Content — nothing to parse (DELETE responses)
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
     const data = await res.json();
 
     if (!res.ok) {

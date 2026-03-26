@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { clearClientToken } from "../lib/clientAuth";
+import { getClientToken, clearClientToken } from "../lib/clientAuth";
+import { apiGet } from "../lib/api";
 
 const NAV_ITEMS = [
   {
@@ -46,6 +48,37 @@ const NAV_ITEMS = [
 
 export default function ClientSidebar() {
   const pathname = usePathname();
+  const [profile, setProfile] = useState<{ full_name: string; current_title: string; initials: string }>({
+    full_name: "Job Hunter",
+    current_title: "Client Portal",
+    initials: "TJH"
+  });
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const token = getClientToken();
+      if (!token) return;
+      try {
+        const data = await apiGet<any>("/api/client/auth/me", token);
+        const name = data?.name || data?.full_name;
+        if (name) {
+          const parts = name.trim().split(/\s+/);
+          const initials = parts.length > 1
+            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+            : name.substring(0, 2).toUpperCase();
+
+          setProfile({
+            full_name: name,
+            current_title: data.current_title || "Client Portal",
+            initials: initials
+          });
+        }
+      } catch (err) {
+        // Ignore errors, stick to defaults
+      }
+    }
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     clearClientToken();
@@ -56,12 +89,12 @@ export default function ClientSidebar() {
     <aside className="flex h-screen w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/80 backdrop-blur-sm">
       {/* Logo */}
       <div className="flex items-center gap-3 border-b border-zinc-800/60 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-          <span className="text-[10px] font-black tracking-wider text-white">TJH</span>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-zinc-900 border border-zinc-800">
+          <img src="/logo.svg" alt="Logo" className="h-full w-full object-cover" />
         </div>
-        <div>
-          <p className="text-sm font-bold text-zinc-100 leading-tight">Job Hunter</p>
-          <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-400/70">Client Portal</p>
+        <div className="overflow-hidden">
+          <p className="text-sm font-bold text-zinc-100 leading-tight truncate" title={profile.full_name}>{profile.full_name}</p>
+          <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-400/70 truncate" title={profile.current_title}>{profile.current_title}</p>
         </div>
       </div>
 

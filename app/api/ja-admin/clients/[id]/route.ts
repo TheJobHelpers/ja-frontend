@@ -33,3 +33,11 @@ export async function POST(
   // send-invite
   return proxyRequest(req, `/api/ja-admin/clients/${id}/send-invite`, { method: "POST" });
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  return proxyRequest(req, `/api/ja-admin/clients/${id}`, { method: "DELETE" });
+}

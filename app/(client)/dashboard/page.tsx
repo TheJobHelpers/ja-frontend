@@ -37,12 +37,13 @@ export default function DashboardPage() {
       if (!token) return;
       try {
         const [userRes, jobsRes] = await Promise.all([
-          apiGet<{ full_name: string }>("/api/client/auth/me", token).catch(() => null),
+          apiGet<{ full_name?: string; name?: string }>("/api/client/auth/me", token).catch(() => null),
           apiGet<any>("/api/client/jobs", token).catch(() => [])
         ]);
         
-        if (userRes?.full_name) {
-          setUserName(userRes.full_name.split(" ")[0]);
+        const nameToUse = userRes?.name || userRes?.full_name;
+        if (nameToUse) {
+          setUserName(nameToUse.split(" ")[0]);
         }
         
         // Handle jobs array (direct array, { jobs: [...] }, or { data: [...] })

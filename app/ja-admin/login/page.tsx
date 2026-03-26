@@ -104,10 +104,7 @@ export default function JaAdminLoginPage() {
             <p className="mt-1 text-sm text-zinc-400">JA Team internal access only</p>
           </div>
 
-          {/* Dev hint */}
-          <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-[11px] text-violet-300">
-            <span className="font-bold">Dev mode:</span> use <code className="bg-violet-500/10 px-1 rounded">admin@jateam.com</code> / <code className="bg-violet-500/10 px-1 rounded">JaAdmin@2026</code>
-          </div>
+
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -181,9 +178,6 @@ export default function JaAdminLoginPage() {
           <div className="flex gap-3">
             <a href="/login" className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/50 py-2.5 text-center text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
               Client Portal
-            </a>
-            <a href="/job-search/login" className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/50 py-2.5 text-center text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
-              HR Tool
             </a>
           </div>
         </div>

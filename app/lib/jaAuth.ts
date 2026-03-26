@@ -42,5 +42,22 @@ export function clearJaToken(): void {
 }
 
 export function isJaAuthenticated(): boolean {
-  return !!getJaToken();
+  const token = getJaToken();
+  if (!token) return false;
+
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const payloadStr = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+      const payload = JSON.parse(payloadStr);
+      if (payload.exp && Date.now() >= payload.exp * 1000) {
+        clearJaToken();
+        return false;
+      }
+    }
+  } catch (e) {
+    // Ignore decode errors, token might be opaque
+  }
+
+  return true;
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useEffect } from "react";
 import JaAdminSidebar from "../../components/JaAdminSidebar";
+import { clearJaToken } from "../../lib/jaAuth";
 
 function subscribe(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -20,6 +21,18 @@ function getServerSnapshot(): boolean {
 export default function JaAdminProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAuthed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearJaToken();
+      window.dispatchEvent(new Event("storage"));
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized as EventListener);
+    return () => {
+      window.removeEventListener("auth:unauthorized", handleUnauthorized as EventListener);
+    };
+  }, []);
 
   if (typeof window !== "undefined" && !isAuthed) {
     router.push("/ja-admin/login");
@@ -39,7 +52,7 @@ export default function JaAdminProtectedLayout({ children }: { children: React.R
   }
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
+    <div className="flex h-screen overflow-hidden bg-zinc-950">
       <JaAdminSidebar />
       <main className="flex-1 overflow-y-auto">
         <div className="px-6 py-8 lg:px-10 lg:py-10">

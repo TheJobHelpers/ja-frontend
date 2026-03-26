@@ -239,6 +239,8 @@ export default function ClientSearchPage() {
   
   // Client layout handles auth
 
+  const [activeTab, setActiveTab] = useState<'search' | 'history'>('search');
+
   const [formData, setFormData] = useState<FormData>({
     jobTitle: "",
     industry: "",
@@ -253,6 +255,7 @@ export default function ClientSearchPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [activeService, setActiveService] = useState<
     "jsearch" | "indeed" | "linkedin" | null
   >(null);
@@ -267,9 +270,13 @@ export default function ClientSearchPage() {
 
   // Assignment states — quota loaded from backend on mount
   const [assignmentsUsed, setAssignmentsUsed] = useState<number>(0);
-  const [maxAssignments, setMaxAssignments] = useState<number>(3);
+  const [maxAssignments, setMaxAssignments] = useState<number>(15);
   const [assigningJobId, setAssigningJobId] = useState<string | null>(null);
   const [assignedJobIds, setAssignedJobIds] = useState<Set<string>>(new Set());
+
+  // Search attempt states — 3 attempts per week, pick up to 15 jobs
+  const [searchAttemptsUsed, setSearchAttemptsUsed] = useState<number>(0);
+  const [maxSearchAttempts, setMaxSearchAttempts] = useState<number>(3);
 
   // Search History & Cache
   const [searchHistory, setSearchHistory] = useState<{
@@ -282,14 +289,12 @@ export default function ClientSearchPage() {
 
   // On mount: restore local cache + fetch real quota + real history from backend
   useEffect(() => {
-    // 1. Restore last search from localStorage immediately (instant UX)
+    // 1. Restore search form data from localStorage (but NOT results — those only show after explicit search)
     const cached = localStorage.getItem("tjh_search_cache");
     if (cached) {
       try {
-        const { formData: cForm, jobs: cJobs, service: cService } = JSON.parse(cached);
+        const { formData: cForm } = JSON.parse(cached);
         setFormData(cForm);
-        setJobs(cJobs);
-        setActiveService(cService);
       } catch (e) { console.error("Cache load failed", e); }
     }
 
@@ -312,7 +317,9 @@ export default function ClientSearchPage() {
         if (statsRes.ok) {
           const stats = await statsRes.json();
           setAssignmentsUsed(stats.assignments_used ?? 0);
-          setMaxAssignments(stats.max_assignments ?? 3);
+          setMaxAssignments(stats.max_assignments ?? 15);
+          setSearchAttemptsUsed(stats.search_attempts_used ?? 0);
+          setMaxSearchAttempts(stats.max_search_attempts ?? 3);
         }
 
         // Pre-load existing assigned jobs to populate the "Assigned ✓" state
@@ -342,8 +349,21 @@ export default function ClientSearchPage() {
           const histData = await histRes.json();
           const backendHistory = Array.isArray(histData) ? histData : histData?.data ?? [];
           if (backendHistory.length > 0) {
-            setSearchHistory(backendHistory);
-            localStorage.setItem("tjh_search_history", JSON.stringify(backendHistory));
+            // Normalize backend history to UI schema
+            const normalizedBackend = backendHistory.map((h: any) => ({
+              id: h.id || Math.random().toString(),
+              formData: h.query_params || h.formData || {},
+              jobs: h.results_preview || h.jobs || [],
+              service: h.service || "linkedin",
+              timestamp: h.timestamp || h.created_at || Date.now()
+            }));
+
+            // Preserve local full-job caches if they exist, otherwise fallback to backend preview history
+            setSearchHistory(prev => {
+              if (prev.length > 0) return prev;
+              localStorage.setItem("tjh_search_history", JSON.stringify(normalizedBackend));
+              return normalizedBackend;
+            });
           }
         }
       } catch (e) {
@@ -384,7 +404,7 @@ export default function ClientSearchPage() {
           },
           body: JSON.stringify({
             query_params: currentForm,
-            results_preview: newJobs.slice(0, 5),
+            results: newJobs,
             service,
           }),
         });
@@ -398,6 +418,7 @@ export default function ClientSearchPage() {
     setActiveService(item.service as any);
     setSearchProgress(null);
     setLoading(false);
+    setHasSearched(true);
     localStorage.setItem("tjh_search_cache", JSON.stringify({ jobs: item.jobs, service: item.service, formData: item.formData }));
   };
 
@@ -582,12 +603,19 @@ export default function ClientSearchPage() {
   };
 
   const handleSearch = async (service: "jsearch" | "indeed" | "linkedin") => {
+    // Guard: enforce search attempts per week
+    if (searchAttemptsUsed >= maxSearchAttempts) {
+      setError(`You've used all ${maxSearchAttempts} search attempts this week. You can still browse and assign jobs from your existing results using the "Search History" tab.`);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setActiveService(service);
     setJobs([]);
     setSearchProgress(null);
     setIndeedRunId(null);
+    setSearchAttemptsUsed(prev => prev + 1);
 
     // Abort any existing stream
     if (streamController) {
@@ -671,6 +699,7 @@ export default function ClientSearchPage() {
                     const finalJobs = data.jobs || [];
                     setJobs(finalJobs);
                     setSearchProgress(null);
+                    setHasSearched(true);
                     if (finalJobs.length > 0) {
                       updateCache(finalJobs, service, formData);
                     }
@@ -725,6 +754,7 @@ export default function ClientSearchPage() {
         }
 
         setJobs(data.jobs || []);
+        setHasSearched(true);
         if (data.jobs && data.jobs.length > 0) {
           updateCache(data.jobs, service, formData);
         }
@@ -765,12 +795,67 @@ export default function ClientSearchPage() {
     setIndeedRunId(null);
   };
 
-  const disabledSearch = loading || !formData.jobTitle.trim();
+  const searchAttemptsExhausted = searchAttemptsUsed >= maxSearchAttempts;
+  const disabledSearch = loading || !formData.jobTitle.trim() || searchAttemptsExhausted;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-104px)] max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-stretch">
-        <div className="glass-panel relative p-6 sm:p-8">
+    <div className="mx-auto flex lg:h-[calc(100vh-104px)] min-h-[calc(100vh-104px)] max-w-[1600px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      
+      {/* Tab Navigation */}
+      <div className="mb-2 flex space-x-6 border-b border-zinc-800/60 pb-1">
+        <button
+          onClick={() => setActiveTab('search')}
+          className={`pb-3 text-sm font-semibold transition border-b-2 ${activeTab === 'search' ? 'border-sky-400 text-sky-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+        >
+          New Search
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`pb-3 text-sm font-semibold transition border-b-2 ${activeTab === 'history' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+        >
+          Search History
+        </button>
+      </div>
+
+      {activeTab === 'history' ? (
+        <section className="flex flex-col gap-4 lg:overflow-y-auto pr-2 lg:custom-scrollbar lg:min-h-0">
+          {searchHistory.length === 0 ? (
+            <div className="glass-panel p-8 text-center text-zinc-400 text-sm">
+              No search history available yet.
+            </div>
+          ) : (
+            searchHistory.map((item) => (
+              <div key={item.id} className="glass-panel p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6 transition hover:border-emerald-500/30">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-zinc-200">{item.formData.jobTitle || "Untitled Search"}</h3>
+                    <span className="pill-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px]">
+                      {item.service}
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-400">
+                    {item.formData.city || "Remote"} • {item.jobs?.length || 0} matching roles
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-3">
+                    Searched at {new Date(item.timestamp).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    restoreFromHistory(item);
+                    setActiveTab('search');
+                  }}
+                  className="shrink-0 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-6 py-3 text-sm font-bold text-emerald-400 transition hover:bg-emerald-500/20 hover:border-emerald-500/40"
+                >
+                  Restore Results
+                </button>
+              </div>
+            ))
+          )}
+        </section>
+      ) : (
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-stretch lg:min-h-0 flex-1">
+        <div className="glass-panel relative p-6 sm:p-8 flex flex-col lg:overflow-y-auto lg:custom-scrollbar pr-2 sm:pr-4">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-[1.25rem] border border-white/10" />
 
           <div className="mb-6 flex items-center gap-3 text-xs text-zinc-400">
@@ -798,29 +883,6 @@ export default function ClientSearchPage() {
                   Search across multiple platforms simultaneously. Surface roles by skills, salary, and location—without the noise.
                 </p>
               </div>
-              
-              {/* Recent Searches Bar - The "Swap" feature */}
-              {searchHistory.length > 0 && (
-                <div className="flex flex-col gap-2 shrink-0">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Recent Investigations</span>
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar max-w-[400px]">
-                    {searchHistory.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => restoreFromHistory(item)}
-                        className="flex flex-col items-start gap-0.5 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 transition hover:border-emerald-500/30 hover:bg-emerald-500/5 group text-left min-w-[140px]"
-                      >
-                        <span className="text-[11px] font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors truncate w-full">
-                          {item.formData.jobTitle || "Untitled Search"}
-                        </span>
-                        <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-tighter">
-                          {item.formData.city || "Remote"} • {item.service}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1131,16 +1193,19 @@ export default function ClientSearchPage() {
               </div>
             </div>
 
-            <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex items-center gap-2 text-[11px] text-zinc-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,1)]" />
-                <span>
-                  Searches run directly against{" "}
-                  <span className="font-medium text-zinc-200">the server</span>.
+            <div className="mt-4 pt-4 border-t border-white/5 flex flex-col xl:flex-row xl:items-center gap-4 justify-between">
+              <div className="flex items-center">
+                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${
+                  searchAttemptsExhausted
+                    ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                    : 'border-zinc-700 bg-zinc-800/80 text-zinc-300'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${searchAttemptsExhausted ? 'bg-red-400' : 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,1)]'}`} />
+                  {searchAttemptsUsed} / {maxSearchAttempts} searches used
                 </span>
               </div>
 
-              <button
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 w-full xl:w-auto">              <button
                 onClick={() => {
                   if (loading && activeService === "linkedin") {
                     handleStopSearch();
@@ -1169,7 +1234,6 @@ export default function ClientSearchPage() {
                   </span>
                 )}
               </button>
-              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
                 <button
                   onClick={() => {
                     if (loading && activeService === "jsearch") {
@@ -1234,10 +1298,10 @@ export default function ClientSearchPage() {
           </div>
         </div>
 
-        <aside className="subtle-card relative flex flex-col p-4 sm:p-5 lg:p-6 overflow-hidden">
+        <aside className="subtle-card relative flex flex-col p-4 sm:p-5 lg:p-6 overflow-hidden lg:min-h-0 lg:h-full min-h-[500px]">
           <div className="absolute inset-0 -z-10 rounded-[0.9rem] border border-white/5" />
 
-          {jobs.length === 0 ? (
+          {!hasSearched || jobs.length === 0 ? (
             <div className="flex flex-col h-full justify-between">
               <div className="space-y-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
@@ -1309,7 +1373,7 @@ export default function ClientSearchPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col h-full max-h-[calc(100vh-10rem)]">
+            <div className="flex flex-col h-full lg:min-h-0">
               <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-4">
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-50">
@@ -1325,7 +1389,7 @@ export default function ClientSearchPage() {
                 <div className="text-right">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 bg-zinc-800/80 px-2.5 py-1 text-[11px] font-medium text-zinc-300">
                     <span className={`h-1.5 w-1.5 rounded-full ${assignmentsUsed >= maxAssignments ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                    {maxAssignments - assignmentsUsed} / {maxAssignments} assigns left this week
+                    {assignmentsUsed} / {maxAssignments} assigned this week
                   </span>
                 </div>
               </div>
@@ -1447,6 +1511,7 @@ export default function ClientSearchPage() {
           )}
         </aside>
       </section>
+      )}
 
       {error && (
         <div className="rounded-xl border border-red-500/30 bg-red-950/60 px-4 py-3 text-sm text-red-200 shadow-[0_15px_35px_rgba(127,29,29,0.65)] sm:px-5">

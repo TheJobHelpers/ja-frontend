@@ -15,6 +15,10 @@ class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    if ((response.status === 401 || response.status === 403) && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    }
+    
     let detail = `Request failed with status ${response.status}`;
     try {
       const errorData = await response.json();

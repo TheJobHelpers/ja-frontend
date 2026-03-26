@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useEffect } from "react";
 import ClientSidebar from "../components/ClientSidebar";
+import { clearClientToken } from "../lib/clientAuth";
 
 function subscribe(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -25,6 +26,18 @@ export default function ClientLayout({
   const router = useRouter();
   const isAuthed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearClientToken();
+      window.dispatchEvent(new Event("storage"));
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized as EventListener);
+    return () => {
+      window.removeEventListener("auth:unauthorized", handleUnauthorized as EventListener);
+    };
+  }, []);
+
   if (typeof window !== "undefined" && !isAuthed) {
     router.push("/login");
     return (
@@ -43,7 +56,7 @@ export default function ClientLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden bg-zinc-950">
       <ClientSidebar />
       <main className="flex-1 overflow-y-auto">
         <div className="px-6 py-8 lg:px-10 lg:py-10">

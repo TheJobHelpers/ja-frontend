@@ -15,45 +15,90 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: "bg-red-500/10 border-red-500/20 text-red-400",
 };
 
-function getCurrentWeekId(): string {
+/** Returns the ISO 8601 week number and year for any given date */
+function getISOWeek(d: Date): { year: number; week: number } {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // ISO 8601: week containing Thursday → belongs to that week's year
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { year: date.getUTCFullYear(), week };
+}
+
+/** Returns a week ID like "2026-W13" from a Date */
+function toWeekId(d: Date): string {
+  const { year, week } = getISOWeek(d);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Returns { start: Monday 00:00 UTC, end: Sunday 23:59:59 UTC } for an ISO week ID */
+function getWeekBounds(weekId: string): { start: Date; end: Date } {
+  // weekId format: "2026-W13"
+  const [yearStr, weekStr] = weekId.split("-W");
+  const year = parseInt(yearStr, 10);
+  const week = parseInt(weekStr, 10);
+  // ISO 8601: Week 1 is the week containing the first Thursday of the year.
+  // Monday of week 1:
+  const jan4 = new Date(Date.UTC(year, 0, 4)); // Jan 4 is always in week 1
+  const jan4Day = jan4.getUTCDay() || 7; // 1=Mon, 7=Sun
+  const mon1 = new Date(jan4);
+  mon1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  // Monday of target week:
+  const start = new Date(mon1);
+  start.setUTCDate(mon1.getUTCDate() + (week - 1) * 7);
+  // Sunday (end) of target week:
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  end.setUTCHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+/** Returns the Sunday (start) of the ISO week for a given date */
+function getWeekSunday(d: Date): Date {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // ISO week starts Monday; we display Sun-Sat so find the Sunday before Monday
+  const day = date.getUTCDay(); // 0=Sun
+  // Move back to Monday of that ISO week, then back 1 day to Sunday
+  const isoMon = new Date(date);
+  isoMon.setUTCDate(date.getUTCDate() - ((day + 6) % 7));
+  const sun = new Date(isoMon);
+  sun.setUTCDate(isoMon.getUTCDate() - 1);
+  return sun;
+}
+
+/** Formats a date range label for the week dropdown */
+function weekLabel(weekOffset: number, weekNum: number): string {
   const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const dayOfYear = Math.ceil((now.getTime() - start.getTime()) / 86400000);
-  const weekNum = Math.ceil((dayOfYear + start.getDay()) / 7);
-  return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  const pivot = new Date(now);
+  pivot.setDate(now.getDate() - 7 * weekOffset);
+  const sun = getWeekSunday(pivot);
+  const sat = new Date(sun);
+  sat.setUTCDate(sun.getUTCDate() + 6);
+  const fmt = (date: Date) => date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `${fmt(sun)} – ${fmt(sat)} (Week ${weekNum})`;
 }
 
-function getClientLimit(createdAt?: string): number {
-  const createdDate = createdAt ? new Date(createdAt) : new Date();
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-  return createdDate < threeMonthsAgo ? 80 : 60;
-}
+function getCurrentWeekId(): string { return toWeekId(new Date()); }
 
-// Generate past week IDs for the dropdown
+/** Generate past weeks for the dropdown, sorted newest → oldest */
 function getPastWeeks(count: number): { id: string; label: string }[] {
   const weeks: { id: string; label: string }[] = [];
-  const now = new Date();
-  for (let i = 1; i <= count; i++) {
-    const d = new Date(now);
+  const seen = new Set<string>();
+  for (let i = 1; i <= count + 2; i++) {
+    const d = new Date();
     d.setDate(d.getDate() - 7 * i);
-    const start = new Date(d.getFullYear(), 0, 1);
-    const dayOfYear = Math.ceil((d.getTime() - start.getTime()) / 86400000);
-    const weekNum = Math.ceil((dayOfYear + start.getDay()) / 7);
-    const weekId = `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
-    // Compute week Monday and Sunday for label
-    const mon = new Date(d);
-    mon.setDate(mon.getDate() - mon.getDay() + 1);
-    const sun = new Date(mon);
-    sun.setDate(sun.getDate() + 6);
-    const label = `${mon.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${sun.toLocaleDateString("en-US", { month: "short", day: "numeric" })} (Week ${weekNum})`;
-    weeks.push({ id: weekId, label });
+    const id = toWeekId(d);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const { week } = getISOWeek(d);
+    weeks.push({ id, label: weekLabel(i, week) });
+    if (weeks.length >= count) break;
   }
   return weeks;
 }
 
 const CURRENT_WEEK_ID = getCurrentWeekId();
-const PAST_WEEKS = getPastWeeks(4);
+const PAST_WEEKS = getPastWeeks(8);
 
 // Time-ago helper
 function timeAgo(dateStr?: string): string {
@@ -173,6 +218,11 @@ export default function AssignmentsPipelinePage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string>(CURRENT_WEEK_ID);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [bundleIdInput, setBundleIdInput] = useState("");
+  const [isSavingBundle, setIsSavingBundle] = useState(false);
+  const [editingBundle, setEditingBundle] = useState(false);
+  const [confirmBundleModal, setConfirmBundleModal] = useState<{isOpen: boolean; bundleId: string; jobCount: number} | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
 
   // Load clients
   useEffect(() => {
@@ -198,17 +248,28 @@ export default function AssignmentsPipelinePage() {
   }, [defaultClientParam]);
 
   // Load jobs when client or week changes
-  // NOTE: We fetch ALL non-archived jobs for the client (no week_id filter on active
-  // pipeline) because client-portal submitted jobs may not have a week_id set.
   const loadJobs = useCallback(async (clientId: string, weekId: string) => {
     try {
-      // For current week: load ALL jobs (queued + assigned) regardless of week_id
-      // so client-submitted jobs with no week_id still appear
+      // For current week: load ALL jobs without week_id filter (client-submitted jobs may have no week_id)
+      // For past weeks: request with week_id AND filter client-side by created_at for accuracy
       const query = weekId === CURRENT_WEEK_ID
         ? `/jobs?clientId=${clientId}`
         : `/jobs?clientId=${clientId}&week_id=${weekId}`;
       const data = await jaApi.get<{ jobs: Job[] }>(query);
-      setJobs(data.jobs || []);
+      let result = data.jobs || [];
+
+      if (weekId !== CURRENT_WEEK_ID) {
+        // Client-side safety net: filter by created_at falling within the selected ISO week
+        // This prevents jobs with no/wrong week_id from bleeding across week views
+        const { start, end } = getWeekBounds(weekId);
+        result = result.filter(j => {
+          if (!j.created_at) return false;
+          const d = new Date(j.created_at);
+          return d >= start && d <= end;
+        });
+      }
+
+      setJobs(result);
     } catch (err) {
       console.error("Failed to load jobs:", err);
       setJobs([]);
@@ -225,13 +286,78 @@ export default function AssignmentsPipelinePage() {
 
   // Job breakdown for current week
   const queuedJobs = jobs.filter(j => j.status === "queued");
-  // 'assigned' is the new backend-consistent name for what was 'batch_active'
-  const batchJobs = jobs.filter(j => j.status === "batch_active" || j.status === "assigned");
+  // 'assigned' is the new backend-consistent name for 'in progress'
+  const inProgressJobs = jobs.filter(j => j.status === "batch_active" || j.status === "assigned");
   const completedJobs = jobs.filter(j => ["applied", "interviewing", "offer", "rejected"].includes(j.status) && !j.is_archived);
   const clientRequestedCount = queuedJobs.filter(j => j.source === "client_selected").length;
-  const limit = selectedClient ? getClientLimit(selectedClient.created_at) : 60;
+  const PIPELINE_LIMIT = 15;
 
   // Actions
+  const currentBundleId = useMemo(() => {
+    return jobs.find(j => j.bundle_id)?.bundle_id || null;
+  }, [jobs]);
+
+  useEffect(() => {
+    if (currentBundleId && !editingBundle) {
+      setBundleIdInput(currentBundleId);
+    } else if (!currentBundleId && !editingBundle) {
+      setBundleIdInput("");
+    }
+  }, [currentBundleId, editingBundle]);
+
+  const initiateSaveBundle = () => {
+    if (!bundleIdInput.trim()) return;
+    setConfirmBundleModal({
+       isOpen: true,
+       bundleId: bundleIdInput,
+       jobCount: inProgressJobs.length
+    });
+  };
+
+  const confirmSaveBundle = async () => {
+    if (!confirmBundleModal || !selectedClientId) return;
+    setIsSavingBundle(true);
+    try {
+      await jaApi.patch(`/jobs/bundle`, {
+        client_id: selectedClientId,
+        week_id: selectedWeek,
+        bundle_id: confirmBundleModal.bundleId,
+        job_ids: inProgressJobs.map(j => j.id),
+      });
+      // Refresh jobs from server to reflect persisted bundle_id
+      await loadJobs(selectedClientId, selectedWeek);
+      setEditingBundle(false);
+      setConfirmBundleModal(null);
+    } catch (err) {
+      console.error("Failed to assign bundle ID:", err);
+    } finally {
+      setIsSavingBundle(false);
+    }
+  };
+
+  const pushAllToInProgress = async () => {
+    try {
+      const qIds = queuedJobs.map(j => j.id);
+      if (qIds.length === 0) return;
+      // Optimistic bulk update
+      setJobs(prev => prev.map(j => qIds.includes(j.id) ? { ...j, status: "assigned" } : j));
+      // API call
+      qIds.forEach(id => jaApi.patch(`/jobs/${id}`, { status: "assigned" }).catch(e => console.error(e)));
+    } catch (err) {
+      console.error("Failed bulk update:", err);
+    }
+  };
+
+  const markAllApplied = async () => {
+    try {
+      const ids = inProgressJobs.map(j => j.id);
+      if (ids.length === 0) return;
+      setJobs(prev => prev.map(j => ids.includes(j.id) ? { ...j, status: "applied" } : j));
+      ids.forEach(id => jaApi.patch(`/jobs/${id}`, { status: "applied" }).catch(e => console.error(e)));
+    } catch (err) {
+      console.error("Failed bulk update:", err);
+    }
+  };
   const updateJobStatus = async (id: string, status: JobStatus) => {
     try {
       await jaApi.patch(`/jobs/${id}`, { status });
@@ -241,7 +367,7 @@ export default function AssignmentsPipelinePage() {
     }
   };
 
-  const archiveCompletedBatch = async () => {
+  const archiveWeeklyPipeline = async () => {
     try {
       await jaApi.post("/jobs", { week_id: selectedWeek, client_id: selectedClientId });
       // Reload jobs after archive
@@ -275,16 +401,31 @@ export default function AssignmentsPipelinePage() {
       <div className="w-80 shrink-0 flex flex-col rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
         <div className="p-4 border-b border-zinc-800 bg-zinc-900/40">
           <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest mb-1.5">Client Pipeline</h2>
-          <p className="text-[10px] text-zinc-500">{clients.length} clients · Week {CURRENT_WEEK_ID.split("-W")[1]}</p>
+          <p className="text-[10px] text-zinc-500 mb-3">{clients.length} clients · Week {CURRENT_WEEK_ID.split("-W")[1]}</p>
+          {/* Search bar */}
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            <input
+              type="text"
+              placeholder="Search clients..."
+              value={clientSearch}
+              onChange={e => setClientSearch(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500/50 transition"
+            />
+            {clientSearch && (
+              <button onClick={() => setClientSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {clients.map(client => {
+          {clients
+            .filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
+            .map(client => {
             const isSelected = client.id === selectedClientId;
-            const cLimit = getClientLimit(client.created_at);
-            const isVeteran = cLimit === 80;
             const initials = getInitials(client.name);
-
             return (
               <button
                 key={client.id}
@@ -306,12 +447,9 @@ export default function AssignmentsPipelinePage() {
                       <span className={`text-sm font-bold truncate ${
                         isSelected ? "text-violet-300" : "text-zinc-200"
                       }`}>{client.name}</span>
-                      {isVeteran && (
-                        <span className="text-[8px] font-black uppercase tracking-wider text-amber-500/70 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">VET</span>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-500">
-                      <span>Max {cLimit}/wk</span>
+                      <span>Max 15/wk</span>
                     </div>
                   </div>
                 </div>
@@ -360,27 +498,59 @@ export default function AssignmentsPipelinePage() {
                 </div>
               </div>
 
-              {selectedWeek === CURRENT_WEEK_ID && (
+              {selectedWeek !== CURRENT_WEEK_ID && (
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg animate-pulse">
+                  ⚠ Past Week
+                </span>
+              )}
+              {(
                 <div className="flex justify-between items-center pt-3 border-t border-zinc-800/50">
-                  <div className="flex gap-4">
-                    {/* Visual mini-gauges */}
+                  <div className="flex gap-4 flex-wrap">
+                    {/* Unified visual mini-gauge */}
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">Limit</span>
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-violet-400/80">Weekly Pipeline</span>
                       <div className="h-1.5 w-16 rounded-full bg-zinc-800 overflow-hidden">
-                        <div className="h-full rounded-full bg-zinc-400 transition-all" style={{ width: `${Math.min((jobs.length / limit) * 100, 100)}%` }} />
+                        <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${Math.min((jobs.length / PIPELINE_LIMIT) * 100, 100)}%` }} />
                       </div>
-                      <span className="text-[10px] font-bold text-zinc-300">{jobs.length}/{limit}</span>
+                      <span className="text-[10px] font-bold text-violet-300">{jobs.length}/{PIPELINE_LIMIT}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-violet-400/80">Batch</span>
-                      <div className="h-1.5 w-16 rounded-full bg-zinc-800 overflow-hidden">
-                        <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${Math.min((batchJobs.length / 15) * 100, 100)}%` }} />
-                      </div>
-                      <span className="text-[10px] font-bold text-violet-300">{batchJobs.length}/15</span>
+
+                    {/* Bundle ID Assigner */}
+                    <div className="flex items-center gap-2 border-l border-zinc-800/80 pl-4 ml-2">
+                       {currentBundleId && !editingBundle ? (
+                         <div className="flex items-center gap-2">
+                           <span className="bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded shadow-inner shadow-black/20">
+                             BUNDLE: {currentBundleId}
+                           </span>
+                           <button onClick={() => setEditingBundle(true)} className="text-zinc-500 hover:text-zinc-300 transition" title="Edit Bundle ID">
+                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                           </button>
+                         </div>
+                       ) : (
+                         <div className="flex items-center gap-2">
+                           <input 
+                              type="text" 
+                              value={bundleIdInput}
+                              onChange={e => setBundleIdInput(e.target.value)}
+                              placeholder="Assign Bundle ID..."
+                              className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1 w-36 outline-none focus:border-violet-500 transition"
+                           />
+                           <button 
+                              onClick={initiateSaveBundle}
+                              disabled={isSavingBundle || !bundleIdInput.trim()}
+                              className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg transition"
+                           >
+                             Save
+                           </button>
+                           {editingBundle && (
+                             <button onClick={() => setEditingBundle(false)} className="text-zinc-500 hover:text-zinc-300 transition text-[10px] font-bold uppercase">Cancel</button>
+                           )}
+                         </div>
+                       )}
                     </div>
                   </div>
                   <button
-                    onClick={archiveCompletedBatch}
+                    onClick={archiveWeeklyPipeline}
                     disabled={completedJobs.length === 0}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${
                       completedJobs.length > 0
@@ -396,8 +566,7 @@ export default function AssignmentsPipelinePage() {
             </div>
 
             {/* Workflow Columns */}
-            {selectedWeek === CURRENT_WEEK_ID ? (
-              <div className="flex-1 overflow-hidden flex gap-4 p-4">
+            <div className="flex-1 overflow-hidden flex gap-4 p-4">
                 {/* 1. Queued */}
                 <div className="flex-1 flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
                   <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
@@ -409,7 +578,14 @@ export default function AssignmentsPipelinePage() {
                         </span>
                       )}
                     </div>
-                    <span className="bg-zinc-800 text-zinc-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{queuedJobs.length}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-zinc-800 text-zinc-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{queuedJobs.length}</span>
+                      {queuedJobs.length > 0 && (
+                        <button onClick={pushAllToInProgress} className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition px-2 py-0.5 bg-zinc-800/50 hover:bg-zinc-700 border border-zinc-700 rounded shadow-sm">
+                          Push All →
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
                     {queuedJobs.length === 0 ? (
@@ -449,36 +625,37 @@ export default function AssignmentsPipelinePage() {
                         )}
                         <div className="flex gap-2 mt-2">
                           {job.apply_link && <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded-lg border border-zinc-700/50 bg-zinc-800/50 py-1.5 text-[9px] font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">View Link ↗</a>}
-                          <button onClick={() => updateJobStatus(job.id, "assigned")} disabled={batchJobs.length >= 15} className="flex-1 rounded-lg bg-violet-500/15 border border-violet-500/20 py-1.5 text-[9px] font-bold text-violet-300 hover:bg-violet-500/30 disabled:opacity-50 transition">→ Add to Batch</button>
+                          <button onClick={() => updateJobStatus(job.id, "assigned")} className="flex-1 rounded-lg bg-violet-500/15 border border-violet-500/20 py-1.5 text-[9px] font-bold text-violet-300 hover:bg-violet-500/30 transition">→ Start Processing</button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 2. Active Batch */}
-                <div className="flex-1 flex flex-col rounded-xl border border-violet-500/20 bg-violet-500/5 overflow-hidden ring-1 ring-violet-500/10 shadow-lg shadow-violet-500/5">
-                  <div className="p-3 border-b border-violet-500/20 bg-violet-500/10 flex justify-between items-center">
+                {/* 2. In Progress */}
+                <div className="flex-1 flex flex-col rounded-xl border-2 border-dashed border-zinc-800/50 bg-transparent overflow-hidden relative">
+                  <div className="p-3 border-b border-dashed border-zinc-800/50 bg-transparent flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-bold text-violet-300 uppercase tracking-wider">2. Active Batch</h3>
-                      {/* Mini progress bar */}
-                      <div className="h-1 w-10 rounded-full bg-violet-900/50 overflow-hidden">
-                        <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${Math.min((batchJobs.length / 15) * 100, 100)}%` }} />
-                      </div>
+                      <h3 className="text-xs font-bold text-violet-300 uppercase tracking-wider">2. In Progress</h3>
+                      <span className="bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2 py-0.5 rounded-full">{inProgressJobs.length}</span>
                     </div>
-                    <span className="bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2 py-0.5 rounded-full">{batchJobs.length}</span>
+                    {inProgressJobs.length > 0 && (
+                      <button onClick={markAllApplied} className="text-[9px] font-bold text-zinc-400 hover:text-violet-300 transition uppercase tracking-widest flex items-center gap-1 bg-transparent hover:bg-violet-500/10 px-2 py-1 rounded-lg">
+                        Mark All Applied <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                      </button>
+                    )}
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    {batchJobs.length === 0 ? (
+                    {inProgressJobs.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center mb-3">
                           <svg className="h-5 w-5 text-violet-500/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                         </div>
-                        <p className="text-[11px] text-violet-400/50 font-medium">No active batch</p>
+                        <p className="text-[11px] text-violet-400/50 font-medium">No jobs in progress</p>
                         <p className="text-[10px] text-violet-500/30 mt-1">← Move jobs from the queue to start</p>
                       </div>
-                    ) : batchJobs.map(job => (
-                      <div key={job.id} className="rounded-xl border border-violet-500/20 bg-zinc-950/50 p-3 shadow-sm hover:border-violet-400/30 transition">
+                    ) : inProgressJobs.map(job => (
+                      <div key={job.id} className="group rounded-xl border border-zinc-800/50 bg-zinc-900/10 p-3 hover:bg-zinc-900/40 hover:border-zinc-700 transition relative">
                         <div className="flex justify-between items-start mb-1">
                           <div className="flex-1 min-w-0">
                             {job.source === "client_selected" && (
@@ -490,9 +667,13 @@ export default function AssignmentsPipelinePage() {
                         </div>
                         <p className="text-[10px] text-zinc-400 mb-3">{job.company} · {job.location}</p>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => updateJobStatus(job.id, "queued")} className="shrink-0 p-1.5 rounded-lg border border-red-500/20 text-red-400/70 hover:bg-red-500/10 transition"><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                          {job.apply_link && <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded-lg border border-zinc-700 bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700 transition">Apply ↗</a>}
-                          <button onClick={() => updateJobStatus(job.id, "applied")} className="flex-1 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 py-1.5 text-[10px] font-bold text-white shadow shadow-violet-500/20 hover:from-violet-400 hover:to-purple-500 transition">✓ Mark Applied</button>
+                          <button onClick={() => updateJobStatus(job.id, "queued")} className="opacity-0 group-hover:opacity-100 absolute -left-2.5 top-3 -translate-x-full shrink-0 p-1.5 rounded-lg border border-red-500/20 bg-zinc-900/90 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition shadow-lg" title="Return to Queue">
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                          {job.apply_link && (
+                            <a href={job.apply_link} target="_blank" rel="noreferrer" className="flex-1 text-center rounded-lg border border-transparent bg-transparent py-1.5 text-[10px] font-bold text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition">View Details ↗</a>
+                          )}
+                          <button onClick={() => updateJobStatus(job.id, "applied")} className="flex-1 rounded-lg border border-transparent bg-transparent py-1.5 text-[10px] font-bold text-zinc-500 group-hover:text-violet-400 group-hover:bg-violet-500/10 hover:!bg-violet-500 hover:!text-white transition">✓ Mark Applied</button>
                         </div>
                       </div>
                     ))}
@@ -532,39 +713,62 @@ export default function AssignmentsPipelinePage() {
                       </div>
                     ))}
                   </div>
-                </div>
               </div>
-            ) : (
-              /* Past Week View (Read Only Archive focus) */
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
-                  <h3 className="text-sm font-bold text-zinc-100 mb-4 flex items-center gap-2">
-                    <svg className="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Jobs this Week ({jobs.length})
-                  </h3>
-
-                  {jobs.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-500 italic text-sm">No record found for this week.</div>
-                  ) : (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {jobs.map(job => (
-                        <div key={job.id} className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="text-sm font-bold text-zinc-200">{job.job_title}</h4>
-                            <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border ${STATUS_COLORS[job.status] || STATUS_COLORS.applied}`}>{job.status}</span>
-                          </div>
-                          <p className="text-xs text-zinc-400 mb-1">{job.company} · {job.location}</p>
-                          {job.apply_link && <p className="text-[10px] text-zinc-500">Applied Link: <a href={job.apply_link} target="_blank" rel="noreferrer" className="text-violet-400 hover:underline px-1 py-0.5 ml-1 bg-violet-500/10 rounded">Source ↗</a></p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
           </>
         )}
       </div>
+
+      {/* Confirm Bundle Assignment Modal */}
+      {confirmBundleModal && confirmBundleModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-[400px] rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-400 shadow-inner">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Save Bundle Code</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Please confirm your assignment details.</p>
+              </div>
+            </div>
+            
+            <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6 space-y-4">
+              <div className="flex justify-between items-center text-sm border-b border-zinc-800 pb-3">
+                <span className="text-zinc-500 font-medium">Bundle ID:</span>
+                <span className="font-mono font-bold text-violet-300 bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">{confirmBundleModal.bundleId}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-zinc-500 font-medium">In-Progress Jobs:</span>
+                <span className="font-bold text-zinc-100 flex items-center gap-1.5">
+                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 opacity-80" />
+                   {confirmBundleModal.jobCount} tracking maps
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] leading-relaxed text-zinc-500 mb-6 text-center max-w-[90%] mx-auto">
+              You are assigning this tracking code strictly to the jobs currently marked as <strong className="text-violet-400 font-bold tracking-wide">IN PROGRESS</strong>. Other operational teams will be able to search for this bundle code immediately.
+            </p>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmBundleModal(null)} 
+                className="flex-[0.8] rounded-xl bg-zinc-900 border border-zinc-800 py-3 text-xs font-bold text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmSaveBundle} 
+                disabled={isSavingBundle}
+                className="flex-[1.2] rounded-xl bg-violet-600 hover:bg-violet-500 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-violet-500/20 transition disabled:opacity-50"
+              >
+                {isSavingBundle ? "Assigning..." : "Confirm & Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

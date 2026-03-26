@@ -125,8 +125,8 @@ export default function ClientLoginPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16">
           {/* Top: Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-              <span className="text-xs font-black tracking-wider text-white">TJH</span>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+              <img src="/logo.svg" alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div>
               <p className="text-sm font-bold text-white tracking-wide">TJH Job Hunter</p>
@@ -195,8 +195,8 @@ export default function ClientLoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile-only branding */}
           <div className="mb-8 text-center lg:hidden">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_0_25px_rgba(16,185,129,0.4)]">
-              <span className="text-sm font-black tracking-wider text-white">TJH</span>
+            <div className="mx-auto mb-3 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-[0_0_25px_rgba(16,185,129,0.4)]">
+              <img src="/logo.svg" alt="Logo" className="h-full w-full object-cover" />
             </div>
             <h1 className="text-xl font-bold text-zinc-100">TJH Job Hunter</h1>
             <p className="text-xs text-emerald-400/70 uppercase tracking-widest mt-1">Client Portal</p>
@@ -299,19 +299,7 @@ export default function ClientLoginPage() {
             get your login credentials.
           </p>
 
-          {/* Dev credentials hint */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="mt-5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-4 py-3 text-center">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500 mb-1">
-                Dev Credentials
-              </p>
-              <p className="text-xs text-zinc-400">
-                <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-emerald-300">client@tjh.com</code>
-                {" / "}
-                <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-emerald-300">client123</code>
-              </p>
-            </div>
-          )}
+
 
           {/* Bottom */}
           <p className="mt-8 text-center text-[11px] text-zinc-600">

@@ -7,8 +7,8 @@ export default function RootPage() {
   const router = useRouter();
 
   useLayoutEffect(() => {
-    // Root page redirects to HR job search portal temporarily
-    router.push("/job-search");
+    // Root page redirects to Client Portal login
+    router.push("/login");
   }, [router]);
 
   return (

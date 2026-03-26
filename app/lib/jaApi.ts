@@ -34,9 +34,16 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    if ((res.status === 401 || res.status === 403) && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    }
+    
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new JaApiError(body.error || body.detail || "Request failed", res.status);
   }
+
+  // 204 No Content — nothing to parse (e.g. DELETE endpoints)
+  if (res.status === 204) return undefined as T;
 
   return res.json();
 }

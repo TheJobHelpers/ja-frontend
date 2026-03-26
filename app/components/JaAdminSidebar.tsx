@@ -39,6 +39,16 @@ export default function JaAdminSidebar() {
       ),
     },
     {
+      href: "/ja-admin/bundles",
+      label: "Bundle Search",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 7.5v6m3-3h-6" />
+        </svg>
+      ),
+    },
+    {
       href: "/ja-admin/clients",
       label: "Client Accounts",
       icon: (

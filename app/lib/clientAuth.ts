@@ -20,5 +20,32 @@ export function clearClientToken(): void {
 }
 
 export function isClientAuthenticated(): boolean {
-  return !!getClientToken();
+  const token = getClientToken();
+  if (!token) return false;
+
+  try {
+    if (token.startsWith("mock_")) {
+      const payloadStr = atob(token.replace("mock_", ""));
+      const payload = JSON.parse(payloadStr);
+      if (payload.exp && Date.now() > payload.exp) {
+        clearClientToken();
+        return false;
+      }
+      return true;
+    }
+
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const payloadStr = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+      const payload = JSON.parse(payloadStr);
+      if (payload.exp && Date.now() >= payload.exp * 1000) {
+        clearClientToken();
+        return false;
+      }
+    }
+  } catch (e) {
+    // Ignore decode errors, token might be opaque
+  }
+
+  return true;
 }

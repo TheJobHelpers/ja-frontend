@@ -77,7 +77,9 @@ export interface Job {
   source: string | null;
   status: JobStatus;
   week_id: string | null;
+  bundle_id?: string | null;
   is_archived: boolean;
+  description: string | null;
   created_at: string;
   updated_at: string;
 }
