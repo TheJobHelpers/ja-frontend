@@ -3,6 +3,21 @@
 import { useState, useEffect } from "react";
 import { apiGet } from "../../lib/api";
 import { getClientToken } from "../../lib/clientAuth";
+import { SkeletonBox, SkeletonText, SkeletonStatCard, SkeletonWeekGroup } from "../../components/Skeleton";
+
+const BASE_URL = "/api/client";
+
+async function markJobApplied(jobId: string, token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/jobs/${jobId}/status`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 interface Job {
   id: string;
@@ -29,7 +44,7 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> =
   rejected: { bg: "bg-red-500/10 border-red-500/20", text: "text-red-300", dot: "bg-red-400" },
 };
 
-const STATUSES = ["all", "queued", "assigned", "saved", "applied", "interviewing", "offer", "rejected"];
+const STATUSES = ["all", "queued", "assigned", "saved", "applied", "rejected"];
 
 export default function TrackerPage() {
   const [filterStatus, setFilterStatus] = useState("all");
@@ -37,6 +52,8 @@ export default function TrackerPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmApplyId, setConfirmApplyId] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadJobs() {
@@ -69,6 +86,18 @@ export default function TrackerPage() {
     loadJobs();
   }, []);
 
+  const handleMarkApplied = async (jobId: string) => {
+    const token = getClientToken();
+    if (!token) return;
+    setApplyingId(jobId);
+    const success = await markJobApplied(jobId, token);
+    setApplyingId(null);
+    setConfirmApplyId(null);
+    if (success) {
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "applied" } : j));
+    }
+  };
+
   const formatWeek = (weekId: string) => {
     if (weekId === "Past Jobs") return "Past Jobs";
     const m = weekId.match(/^(\d{4})-W(\d{2})$/);
@@ -92,6 +121,31 @@ export default function TrackerPage() {
     if (b === "Past Jobs") return -1;
     return b.localeCompare(a);
   });
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="space-y-1">
+          <SkeletonText className="w-36 h-7" />
+          <SkeletonText className="w-52 h-4" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({length: 4}).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+        {/* Filter chips skeleton */}
+        <div className="flex items-center gap-2">
+          {["w-24","w-20","w-22","w-20","w-24"].map((w, i) => (
+            <SkeletonBox key={i} className={`h-7 ${w} rounded-full`} />
+          ))}
+        </div>
+        {/* Weekly groups skeleton */}
+        <div className="space-y-10">
+          <SkeletonWeekGroup />
+          <SkeletonWeekGroup />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -122,12 +176,12 @@ export default function TrackerPage() {
         <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4 relative overflow-hidden group hover:border-zinc-700 transition duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
           <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1 relative z-10">Applications</h3>
-          <p className="text-2xl font-black text-zinc-100 relative z-10">{jobs.filter(j => ['applied', 'interviewing', 'offer'].includes(j.status)).length}</p>
+          <p className="text-2xl font-black text-zinc-100 relative z-10">{jobs.filter(j => j.status === 'applied').length}</p>
         </div>
         <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4 relative overflow-hidden group hover:border-zinc-700 transition duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1 relative z-10">Active Interviews</h3>
-          <p className="text-2xl font-black text-zinc-100 relative z-10">{jobs.filter(j => ['interviewing', 'offer'].includes(j.status)).length}</p>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1 relative z-10">In Queue</h3>
+          <p className="text-2xl font-black text-zinc-100 relative z-10">{jobs.filter(j => ['queued', 'assigned', 'reviewing'].includes(j.status)).length}</p>
         </div>
       </div>
 
@@ -256,39 +310,71 @@ export default function TrackerPage() {
                             </div>
                             <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-tighter">{displayDate}</span>
                           </div>
-                        </div>
-
-                        <div className="mt-4 flex items-center justify-between border-t border-zinc-800/30 pt-4">
-                          <div className="flex items-center gap-3">
-                            {isJAHandled && job.status === "assigned" ? (
+                        </div>                         <div className="mt-4 flex items-center justify-between border-t border-zinc-800/30 pt-4">
+                           <div className="flex items-center gap-2 flex-wrap">
+                             {/* JA Reviewing label when JA-handled and assigned */}
+                             {isJAHandled && job.status === "assigned" ? (
                                <span className="text-[10px] font-black uppercase tracking-widest text-sky-400/60 flex items-center gap-2">
-                                <span className="h-1 w-1 rounded-full bg-sky-400 animate-pulse" />
-                                JA Reviewing
-                              </span>
-                            ) : job.status !== "applied" ? (
-                              <a
-                                href={job.apply_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="rounded-lg bg-zinc-100 text-zinc-950 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-white transition shadow-lg shadow-white/5"
-                              >
-                                Apply ↗
-                              </a>
-                            ) : null}
-                            
-                            <button className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
-                              Details
-                            </button>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <button className="p-1 text-zinc-700 hover:text-white transition">
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 5v.01M12 12v.01M12 19v.01" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
+                                 <span className="h-1 w-1 rounded-full bg-sky-400 animate-pulse" />
+                                 JA Reviewing
+                               </span>
+                             ) : null}
+
+                             {/* View Job link — always shows when there is an apply_link */}
+                             {job.apply_link && job.status !== "applied" && (
+                               <a
+                                 href={job.apply_link}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="rounded-lg bg-zinc-100 text-zinc-950 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-white transition shadow-lg shadow-white/5 flex items-center gap-1.5"
+                               >
+                                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                 </svg>
+                                 View Job
+                               </a>
+                             )}
+
+                             {/* Mark as Applied button — shows when job is not yet applied */}
+                             {job.status !== "applied" && (
+                               confirmApplyId === job.id ? (
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-[10px] text-zinc-400 font-semibold">Applied already?</span>
+                                   <button
+                                     onClick={() => handleMarkApplied(job.id)}
+                                     disabled={applyingId === job.id}
+                                     className="rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition disabled:opacity-60 flex items-center gap-1.5"
+                                   >
+                                     {applyingId === job.id ? (
+                                       <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                     ) : (
+                                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                     )}
+                                     Confirm
+                                   </button>
+                                   <button
+                                     onClick={() => setConfirmApplyId(null)}
+                                     className="rounded-lg border border-zinc-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition"
+                                   >
+                                     Cancel
+                                   </button>
+                                 </div>
+                               ) : (
+                                 <button
+                                   onClick={() => setConfirmApplyId(job.id)}
+                                   className="rounded-lg border border-dashed border-zinc-700 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-emerald-300 hover:border-emerald-500/50 transition flex items-center gap-1.5"
+                                 >
+                                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                   Mark as Applied
+                                 </button>
+                               )
+                             )}
+                           </div>
+                           
+                           <button className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
+                             Details
+                           </button>
+                         </div>
                       </div>
                     );
                   })}

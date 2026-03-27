@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { jaApi } from "../../../lib/jaApi";
 import type { Client, PortalAccess } from "../../../types/ja-admin";
+import { SkeletonBox, SkeletonText, SkeletonStatCard, SkeletonTableRow } from "../../../components/Skeleton";
 
 // ─── Portal Access Badge ──────────────────────────────────────
 const ACCESS_STYLES: Record<PortalAccess, { badge: string; dot: string; label: string }> = {
@@ -434,9 +435,30 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Client Accounts</h1>
-        <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 h-28 animate-pulse" />)}</div>
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <SkeletonText className="w-44 h-7" />
+            <SkeletonText className="w-56 h-4" />
+          </div>
+          <SkeletonBox className="h-9 w-32 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({length: 4}).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+        {/* Search bar skeleton */}
+        <SkeletonBox className="h-10 w-full rounded-xl" />
+        {/* Table skeleton */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
+          <div className="px-5 py-3 border-b border-zinc-800 flex items-center gap-4">
+            <SkeletonText className="w-20 h-3" />
+            <SkeletonText className="w-32 h-3" />
+            <SkeletonText className="w-20 h-3" />
+          </div>
+          <div className="divide-y divide-zinc-800/40">
+            {Array.from({length: 6}).map((_, i) => <SkeletonTableRow key={i} />)}
+          </div>
+        </div>
       </div>
     );
   }

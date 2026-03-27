@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { apiGet } from "../../lib/api";
 import { getClientToken } from "../../lib/clientAuth";
+import { SkeletonBox, SkeletonText, SkeletonStatCard, SkeletonJobCard } from "../../components/Skeleton";
 
 interface Job {
   id: string;
@@ -30,22 +31,25 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> =
 export default function DashboardPage() {
   const [userName, setUserName] = useState<string>("Client");
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [stats, setStats] = useState<{ assignments_used?: number; max_assignments?: number } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       const token = getClientToken();
       if (!token) return;
       try {
-        const [userRes, jobsRes] = await Promise.all([
+        const [userRes, jobsRes, statsRes] = await Promise.all([
           apiGet<{ full_name?: string; name?: string }>("/api/client/auth/me", token).catch(() => null),
-          apiGet<any>("/api/client/jobs", token).catch(() => [])
+          apiGet<any>("/api/client/jobs", token).catch(() => []),
+          apiGet<any>("/api/client/jobs/stats", token).catch(() => null),
         ]);
-        
+
         const nameToUse = userRes?.name || userRes?.full_name;
         if (nameToUse) {
           setUserName(nameToUse.split(" ")[0]);
         }
-        
+
         // Handle jobs array (direct array, { jobs: [...] }, or { data: [...] })
         const jobsArray = Array.isArray(jobsRes)
           ? jobsRes
@@ -55,18 +59,56 @@ export default function DashboardPage() {
           ? jobsRes.data
           : [];
         setJobs(jobsArray);
-        
+        if (statsRes) setStats(statsRes);
+
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
+      } finally {
+        setLoading(false);
       }
     }
     loadData();
   }, []);
 
-  // Compute stats
+  // Computed stats
   const assignedCount = jobs.filter(j => ['queued', 'assigned', 'reviewing'].includes(j.status)).length;
   const appliedCount = jobs.filter(j => j.status === 'applied').length;
-  const interviewingCount = jobs.filter(j => j.status === 'interviewing').length;
+  const weeklyUsed = stats?.assignments_used ?? 0;
+  const weeklyMax = stats?.max_assignments ?? 15;
+
+  if (loading) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div>
+          <SkeletonText className="w-48 h-7" />
+          <SkeletonText className="w-64 h-4 mt-2" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <SkeletonText className="w-40 h-5" />
+            <SkeletonText className="w-16 h-4" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-5 py-4">
+                <div className="flex-1 space-y-2">
+                  <SkeletonText className="w-2/3 h-4" />
+                  <SkeletonText className="w-1/2 h-3" />
+                </div>
+                <div className="ml-4 flex items-center gap-3">
+                  <SkeletonBox className="h-6 w-20 rounded-full" />
+                  <SkeletonBox className="h-4 w-14 rounded hidden sm:block" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -82,23 +124,44 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Assigned Jobs", value: assignedCount.toString(), icon: "📋", accent: "from-sky-500/20 to-sky-500/5" },
-          { label: "Applied", value: appliedCount.toString(), icon: "🚀", accent: "from-violet-500/20 to-violet-500/5" },
-          { label: "Interviewing", value: interviewingCount.toString(), icon: "💬", accent: "from-amber-500/20 to-amber-500/5" },
-          { label: "Searches Today", value: "Available", icon: "🔍", accent: "from-emerald-500/20 to-emerald-500/5" },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className={`rounded-xl border border-zinc-800 bg-gradient-to-br ${stat.accent} p-5`}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">{stat.label}</p>
-              <span className="text-lg">{stat.icon}</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-zinc-100">{stat.value}</p>
+        {/* Assigned Jobs */}
+        <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-sky-500/20 to-sky-500/5 p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Assigned Jobs</p>
+            <span className="text-lg">📋</span>
           </div>
-        ))}
+          <p className="mt-2 text-2xl font-bold text-zinc-100">{assignedCount}</p>
+        </div>
+
+        {/* Applied */}
+        <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-violet-500/20 to-violet-500/5 p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Applied</p>
+            <span className="text-lg">🚀</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-zinc-100">{appliedCount}</p>
+        </div>
+
+        {/* Total Jobs */}
+        <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-teal-500/20 to-teal-500/5 p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Total Jobs</p>
+            <span className="text-lg">📁</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-zinc-100">{jobs.length}</p>
+        </div>
+
+        {/* Weekly Allowance */}
+        <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-amber-500/20 to-amber-500/5 p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Weekly Allowance</p>
+            <span className="text-lg">📅</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-zinc-100">
+            {weeklyUsed}
+            <span className="text-sm font-normal text-zinc-500 ml-1">/ {weeklyMax}</span>
+          </p>
+        </div>
       </div>
 
       {/* Assigned Jobs Section */}

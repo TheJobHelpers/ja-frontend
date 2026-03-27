@@ -14,7 +14,7 @@ export default function HrLayout({
           <p>Built for technical job hunters.</p>
           <p className="text-[11px]">
             Powered by{" "}
-            <span className="font-medium text-zinc-300">TJH </span>{" "}
+            <span className="font-medium text-zinc-300">TheJobHelpers </span>{" "}
           </p>
         </div>
       </footer>

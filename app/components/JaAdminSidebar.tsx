@@ -80,7 +80,7 @@ export default function JaAdminSidebar() {
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-400">TJH Job Hunter</p>
+          <p className="text-[10px] font-semibold tracking-[0.15em] text-violet-400">TheJobHelpers</p>
           <p className="truncate text-sm font-bold text-zinc-100">JA Internal</p>
         </div>
         <span className="ml-auto rounded bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-400">

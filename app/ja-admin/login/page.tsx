@@ -53,7 +53,7 @@ export default function JaAdminLoginPage() {
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">TJH Job Hunter</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">TheJobHelpers</p>
               <p className="text-sm font-bold text-white">JA Internal Portal</p>
             </div>
           </div>

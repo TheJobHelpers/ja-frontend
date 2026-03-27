@@ -129,7 +129,7 @@ export default function ClientLoginPage() {
               <img src="/logo.svg" alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white tracking-wide">TJH - Application Hub</p>
+              <p className="text-sm font-bold text-white tracking-wide">Job Application Hub</p>
               <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/80">Client Portal</p>
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function ClientLoginPage() {
             <div className="h-8 w-px bg-white/10" />
             <div>
               <p className="text-2xl font-bold text-white">Free</p>
-              <p className="text-[11px] text-zinc-400">For TJH clients</p>
+              <p className="text-[11px] text-zinc-400">For TheJobHelpers clients</p>
             </div>
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function ClientLoginPage() {
             <div className="mx-auto mb-3 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-[0_0_25px_rgba(16,185,129,0.4)]">
               <img src="/logo.svg" alt="Logo" className="h-full w-full object-cover" />
             </div>
-            <h1 className="text-xl font-bold text-zinc-100">TJH - Application Hub</h1>
+            <h1 className="text-xl font-bold text-zinc-100">Job Application Hub</h1>
             <p className="text-xs text-emerald-400/70 uppercase tracking-widest mt-1">Client Portal</p>
           </div>
 
@@ -294,8 +294,8 @@ export default function ClientLoginPage() {
           </div>
 
           <p className="text-center text-xs text-zinc-500">
-            This portal is for TJH clients only.{" "}
-            <span className="text-emerald-400/70">Contact your TJH representative</span> to
+            This portal is for TheJobHelpers clients only.{" "}
+            <span className="text-emerald-400/70">Contact your TheJobHelpers representative</span> to
             get your login credentials.
           </p>
 
@@ -303,7 +303,7 @@ export default function ClientLoginPage() {
 
           {/* Bottom */}
           <p className="mt-8 text-center text-[11px] text-zinc-600">
-            Powered by TJH - Application Hub
+            Powered by Job Application Hub | TheJobHelpers
           </p>
         </div>
       </div>

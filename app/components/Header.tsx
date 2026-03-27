@@ -50,12 +50,12 @@ export default function Header() {
           <a href="/job-search" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-tr from-blue-500 via-sky-400 to-emerald-400 shadow-[0_0_25px_rgba(56,189,248,0.75)]">
               <span className="text-xs font-black tracking-[0.18em] text-white flex items-center justify-center w-full text-center leading-none">
-                TJH
+                TheJobHelpers
               </span>
             </div>
             <div>
               <p className="text-sm font-semibold tracking-tight">
-                TJH Job Hunter
+                Job Application Hub
               </p>
               <p className="text-[11px] text-zinc-400">One sleek interface</p>
             </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { jaApi } from "../../../lib/jaApi";
 import type { DashboardStats, Client } from "../../../types/ja-admin";
+import { SkeletonBox, SkeletonText, SkeletonStatCard, SkeletonTableRow } from "../../../components/Skeleton";
 
 export default function JaAdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -46,15 +47,40 @@ export default function JaAdminDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 animate-in fade-in duration-300">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
-          <p className="mt-1 text-sm text-zinc-400">Loading...</p>
+          <SkeletonText className="w-28 h-7" />
+          <SkeletonText className="w-72 h-4 mt-2" />
         </div>
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 h-28 animate-pulse" />
-          ))}
+          {Array.from({length: 4}).map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800">
+              <SkeletonText className="w-32 h-4" />
+            </div>
+            <div className="divide-y divide-zinc-800/50">
+              {Array.from({length: 5}).map((_, i) => <SkeletonTableRow key={i} />)}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800">
+              <SkeletonText className="w-32 h-4" />
+            </div>
+            <div className="divide-y divide-zinc-800/50">
+              {Array.from({length: 5}).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-5 py-3">
+                  <SkeletonBox className="h-7 w-7 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <SkeletonText className="w-3/4 h-3" />
+                    <SkeletonText className="w-1/2 h-2.5" />
+                  </div>
+                  <SkeletonText className="w-12 h-3 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );

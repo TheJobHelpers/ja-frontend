@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { jaApi } from "../../../lib/jaApi";
 import type { Staff, StaffRole, StaffStatus } from "../../../types/ja-admin";
 import { getJaUser, JaUser } from "../../../lib/jaAuth";
+import { SkeletonBox, SkeletonText, SkeletonTableRow } from "../../../components/Skeleton";
 
 const STATUS_STYLES: Record<StaffStatus, string> = {
   active: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
@@ -309,12 +310,23 @@ export default function TeamAccessPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Team Access</h1>
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between border-b border-zinc-800/60 pb-5">
+          <div className="space-y-2">
+            <SkeletonText className="w-36 h-7" />
+            <SkeletonText className="w-72 h-4" />
+          </div>
+          <SkeletonBox className="h-9 w-36 rounded-xl" />
+        </div>
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/50">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 border-b border-zinc-800 animate-pulse bg-zinc-900/30" />
-          ))}
+          <div className="grid grid-cols-5 px-5 py-3 border-b border-zinc-800 gap-4">
+            {["w-20","w-28","w-16","w-20","w-16"].map((w,i) => (
+              <SkeletonText key={i} className={`${w} h-3`} />
+            ))}
+          </div>
+          <div className="divide-y divide-zinc-800/40">
+            {Array.from({length: 5}).map((_, i) => <SkeletonTableRow key={i} />)}
+          </div>
         </div>
       </div>
     );

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TJH Job Hunter",
-  description: "Find your dream job with TJH Job Hunter — powered by LinkedIn, Indeed, and Google job search.",
+  title: "Job Application Hub | TheJobHelpers",
+  description: "Find your dream job with TheJobHelpers — powered by LinkedIn, Indeed, and Google job search.",
 };
 
 export default function RootLayout({

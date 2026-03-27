@@ -39,8 +39,15 @@ export default function BundleSearchPage() {
 
   // Fetch available bundles on mount
   useEffect(() => {
-    jaApi.get<{ bundles: {id: string, date?: string}[] }>("/jobs/bundles")
-      .then(d => setAvailableBundles(d.bundles || []))
+    jaApi.get<{ bundles: ({id: string, date?: string} | string)[] }>("/jobs/bundles")
+      .then(d => {
+        const raw = d.bundles || [];
+        // Normalize: handle both string[] (old) and {id, date}[] (new)
+        const normalized = raw.map(b =>
+          typeof b === "string" ? { id: b, date: undefined } : b
+        );
+        setAvailableBundles(normalized);
+      })
       .catch(e => console.error("Failed to fetch available bundles:", e));
   }, []);
 

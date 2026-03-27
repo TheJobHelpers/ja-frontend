@@ -43,7 +43,7 @@ export default function ClientSidebar() {
   const [profile, setProfile] = useState<{ full_name: string; current_title: string; initials: string }>({
     full_name: "Job Hunter",
     current_title: "Client Portal",
-    initials: "TJH"
+    initials: "JH"
   });
 
   useEffect(() => {
