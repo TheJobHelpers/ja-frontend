@@ -80,7 +80,7 @@ export default function JaAdminSidebar({ isOpen = false, onClose = () => {} }: {
         onClick={onClose}
       />
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-zinc-800/60 bg-zinc-950 transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 shrink-0 flex-col border-r border-zinc-800/60 bg-zinc-950 transition-transform duration-300 lg:static lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

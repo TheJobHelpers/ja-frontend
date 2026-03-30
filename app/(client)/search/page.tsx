@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useLayoutEffect, useRef, useEffect } from "react";
+import { Toast } from "../../components/Toast";
+
 
 
 interface Job {
@@ -274,10 +276,13 @@ export default function ClientSearchPage() {
   const [assigningJobId, setAssigningJobId] = useState<string | null>(null);
   const [assignedJobIds, setAssignedJobIds] = useState<Set<string>>(new Set());
 
-  // Search attempt states — 3 attempts per week, pick up to 15 jobs
+  // Search attempts used — 3 attempts per week, pick up to 15 jobs
   const [searchAttemptsUsed, setSearchAttemptsUsed] = useState<number>(0);
   const [maxSearchAttempts, setMaxSearchAttempts] = useState<number>(3);
   const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
+
+  // Toast notifications
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   // Search History & Cache
   const [searchHistory, setSearchHistory] = useState<{
@@ -446,7 +451,7 @@ export default function ClientSearchPage() {
     // Duplicate check
     const key = jobKey(job);
     if (assignedJobIds.has(key)) {
-      alert("This role has already been assigned to the JA team.");
+      setToast({ message: "This role has already been assigned to the JA team.", type: "error" });
       return;
     }
 
@@ -474,7 +479,7 @@ export default function ClientSearchPage() {
 
       if (res.status === 403) {
         const data = await res.json().catch(() => ({}));
-        alert(data.detail ?? `You've reached your weekly limit of ${maxAssignments} job assignments. Your limit resets next Monday.`);
+        setToast({ message: data.detail ?? `You've reached your weekly limit of ${maxAssignments} job assignments. Your limit resets next Monday.`, type: "error" });
         return;
       }
 
@@ -482,10 +487,10 @@ export default function ClientSearchPage() {
 
       setAssignmentsUsed(prev => prev + 1);
       setAssignedJobIds(prev => new Set([...prev, key]));
-      alert("✅ Submitted! Our JA team will review this opportunity for you.");
+      setToast({ message: "Submitted! Our JA team will review this opportunity for you.", type: "success" });
     } catch (err) {
       console.error(err);
-      alert("Failed to assign job. Please try again later.");
+      setToast({ message: "Failed to assign job. Please try again later.", type: "error" });
     } finally {
       setAssigningJobId(null);
     }
@@ -1619,6 +1624,14 @@ export default function ClientSearchPage() {
             />
           </div>
         </div>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );
