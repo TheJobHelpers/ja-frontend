@@ -3,7 +3,8 @@ import { proxyRequest } from "../../../_proxy";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return proxyRequest(request, `/api/client/jobs/${params.id}/status`);
+  const { id } = await params;
+  return proxyRequest(request, `/api/client/jobs/${id}/status`);
 }
