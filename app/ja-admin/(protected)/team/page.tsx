@@ -378,8 +378,8 @@ export default function TeamAccessPage() {
       </div>
 
       {/* Team Table */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/50">
-        <table className="w-full text-left text-sm text-zinc-400">
+      <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950/50">
+        <table className="w-full text-left text-sm text-zinc-400 min-w-[700px]">
           <thead className="border-b border-zinc-800 bg-zinc-900/40 text-[10px] uppercase tracking-widest text-zinc-500">
             <tr>
               <th className="px-6 py-4 font-bold">Staff Member</th>

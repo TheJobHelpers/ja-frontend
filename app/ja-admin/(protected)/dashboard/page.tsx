@@ -52,7 +52,7 @@ export default function JaAdminDashboard() {
           <SkeletonText className="w-28 h-7" />
           <SkeletonText className="w-72 h-4 mt-2" />
         </div>
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 xl:grid-cols-4">
           {Array.from({length: 4}).map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
         <div className="grid gap-6 xl:grid-cols-2">
@@ -95,7 +95,7 @@ export default function JaAdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 xl:grid-cols-4">
         {statCards.map((s) => (
           <div key={s.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-3">
             <div className="flex items-center justify-between">

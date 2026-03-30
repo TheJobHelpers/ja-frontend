@@ -38,7 +38,7 @@ const NAV_ITEMS = [
 
 ];
 
-export default function ClientSidebar() {
+export default function ClientSidebar({ isOpen = false, onClose = () => {} }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const [profile, setProfile] = useState<{ full_name: string; current_title: string; initials: string }>({
     full_name: "Job Hunter",
@@ -78,7 +78,19 @@ export default function ClientSidebar() {
   };
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/80 backdrop-blur-sm">
+    <>
+      {/* Mobile backdrop */}
+      <div 
+        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`} 
+        onClick={onClose}
+      />
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md transition-transform duration-300 lg:static lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       {/* Logo */}
       <div className="flex items-center gap-3 border-b border-zinc-800/60 px-5 py-5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-zinc-900 border border-zinc-800">
@@ -98,6 +110,7 @@ export default function ClientSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                 isActive
                   ? "bg-emerald-500/10 text-emerald-300 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)]"
@@ -127,5 +140,6 @@ export default function ClientSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

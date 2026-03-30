@@ -379,15 +379,15 @@ export default function AssignmentsPipelinePage() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-8rem)] gap-6">
-        <div className="w-80 shrink-0 rounded-2xl border border-zinc-800 bg-zinc-950/50 animate-pulse" />
-        <div className="flex-1 rounded-2xl border border-zinc-800 bg-zinc-950/50 animate-pulse" />
+      <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-8rem)] gap-6">
+        <div className="w-full lg:w-80 h-64 lg:h-auto shrink-0 rounded-2xl border border-zinc-800 bg-zinc-950/50 animate-pulse" />
+        <div className="flex-1 h-[500px] lg:h-auto rounded-2xl border border-zinc-800 bg-zinc-950/50 animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-6">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-8rem)] gap-6">
       {showAddModal && selectedClient && (
         <AddManualJobModal
           clientId={selectedClient.id}
@@ -398,7 +398,7 @@ export default function AssignmentsPipelinePage() {
       )}
 
       {/* ─── Left Pane: Client List ────────────────────────────── */}
-      <div className="w-80 shrink-0 flex flex-col rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
+      <div className="w-full lg:w-80 h-[300px] lg:h-auto shrink-0 flex flex-col rounded-2xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
         <div className="p-4 border-b border-zinc-800 bg-zinc-900/40">
           <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest mb-1.5">Client Pipeline</h2>
           <p className="text-[10px] text-zinc-500 mb-3">{clients.length} clients · Week {CURRENT_WEEK_ID.split("-W")[1]}</p>
@@ -470,7 +470,7 @@ export default function AssignmentsPipelinePage() {
           <>
             {/* Header / Week Selector */}
             <div className="p-5 border-b border-zinc-800 bg-zinc-900/40">
-              <div className="flex justify-between items-start mb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-4 mb-4">
                 <div className="flex items-center gap-3">
                   {/* Client Initials Avatar */}
                   <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-sm font-black text-violet-300">
@@ -504,8 +504,8 @@ export default function AssignmentsPipelinePage() {
                 </span>
               )}
               {(
-                <div className="flex justify-between items-center pt-3 border-t border-zinc-800/50">
-                  <div className="flex gap-4 flex-wrap">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-3 border-t border-zinc-800/50 gap-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                     {/* Unified visual mini-gauge */}
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] uppercase tracking-wider font-bold text-violet-400/80">Weekly Pipeline</span>
@@ -516,7 +516,7 @@ export default function AssignmentsPipelinePage() {
                     </div>
 
                     {/* Bundle ID Assigner */}
-                    <div className="flex items-center gap-2 border-l border-zinc-800/80 pl-4 ml-2">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:border-l border-zinc-800/80 lg:pl-4 lg:ml-2">
                        {currentBundleId && !editingBundle ? (
                          <div className="flex items-center gap-2">
                            <span className="bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded shadow-inner shadow-black/20">
@@ -566,9 +566,9 @@ export default function AssignmentsPipelinePage() {
             </div>
 
             {/* Workflow Columns */}
-            <div className="flex-1 overflow-hidden flex gap-4 p-4">
+            <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col xl:flex-row gap-4 p-4">
                 {/* 1. Queued */}
-                <div className="flex-1 flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
+                <div className="flex-1 flex flex-col min-h-[400px] xl:min-h-0 rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
                   <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">1. Queued</h3>
@@ -633,7 +633,7 @@ export default function AssignmentsPipelinePage() {
                 </div>
 
                 {/* 2. In Progress */}
-                <div className="flex-1 flex flex-col rounded-xl border-2 border-dashed border-zinc-800/50 bg-transparent overflow-hidden relative">
+                <div className="flex-1 flex flex-col min-h-[400px] xl:min-h-0 rounded-xl border-2 border-dashed border-zinc-800/50 bg-transparent overflow-hidden relative">
                   <div className="p-3 border-b border-dashed border-zinc-800/50 bg-transparent flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-bold text-violet-300 uppercase tracking-wider">2. In Progress</h3>
@@ -681,7 +681,7 @@ export default function AssignmentsPipelinePage() {
                 </div>
 
                 {/* 3. Applied / Completed */}
-                <div className="flex-1 flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
+                <div className="flex-1 flex flex-col min-h-[400px] xl:min-h-0 rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
                   <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
                     <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5"><svg className="h-3.5 w-3.5 text-emerald-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>3. Applied</h3>
                     <span className="bg-zinc-800 text-zinc-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{completedJobs.length}</span>

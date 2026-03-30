@@ -276,8 +276,8 @@ export default function TrackerPage() {
                         key={job.id}
                         className="group relative rounded-2xl border border-zinc-800/60 bg-zinc-900/20 p-5 transition hover:border-zinc-700 hover:bg-zinc-900/40"
                       >
-                        <div className="flex items-start justify-between gap-6">
-                          <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6">
+                          <div className="flex-1 min-w-0 w-full">
                             <h3 className="text-base font-bold text-zinc-100 mb-2 group-hover:text-emerald-400 transition-colors">
                               {job.job_title}
                             </h3>
@@ -303,15 +303,15 @@ export default function TrackerPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-2 shrink-0">
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 w-full sm:w-auto">
                             <div className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${style.bg} ${style.text}`}>
                               <span className={`h-1 w-1 rounded-full ${style.dot}`} />
                               {job.status}
                             </div>
                             <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-tighter">{displayDate}</span>
                           </div>
-                        </div>                         <div className="mt-4 flex items-center justify-between border-t border-zinc-800/30 pt-4">
-                           <div className="flex items-center gap-2 flex-wrap">
+                        </div>                         <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between border-t border-zinc-800/30 pt-4 gap-4">
+                           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                              {/* JA Reviewing label when JA-handled and assigned */}
                              {isJAHandled && job.status === "assigned" ? (
                                <span className="text-[10px] font-black uppercase tracking-widest text-sky-400/60 flex items-center gap-2">
@@ -371,7 +371,7 @@ export default function TrackerPage() {
                              )}
                            </div>
                            
-                           <button className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
+                           <button className="w-full sm:w-auto rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2 sm:py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
                              Details
                            </button>
                          </div>

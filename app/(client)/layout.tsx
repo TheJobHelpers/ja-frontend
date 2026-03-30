@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ClientSidebar from "../components/ClientSidebar";
+import MobileHeader from "../components/MobileHeader";
 import { clearClientToken } from "../lib/clientAuth";
 
 function subscribe(callback: () => void) {
@@ -23,6 +24,7 @@ export default function ClientLayout({
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [isAuthed, setIsAuthed] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -61,9 +63,10 @@ export default function ClientLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-950">
-      <ClientSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="px-6 py-8 lg:px-10 lg:py-10">
+      <ClientSidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <main className="flex-1 overflow-y-auto w-full">
+        <MobileHeader onMenuClick={() => setMobileMenuOpen(true)} title="Client Portal" />
+        <div className="px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
           {children}
         </div>
       </main>

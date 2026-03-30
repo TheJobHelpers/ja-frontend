@@ -257,7 +257,7 @@ export default function BundleSearchPage() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-4 sm:mt-0">
+            <div className="flex flex-wrap items-center gap-3 mt-4 sm:mt-0">
               {bundleJobs.some(j => j.status === "assigned" || j.status === "batch_active") && (
                 <button onClick={markAllApplied} className="text-[10px] font-bold text-zinc-400 hover:text-violet-300 transition uppercase tracking-widest flex items-center gap-1.5 bg-transparent hover:bg-violet-500/10 px-3 py-1.5 rounded-lg border border-transparent hover:border-violet-500/20">
                   Mark All Applied <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>

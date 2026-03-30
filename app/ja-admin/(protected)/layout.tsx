@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import JaAdminSidebar from "../../components/JaAdminSidebar";
+import MobileHeader from "../../components/MobileHeader";
 import { clearJaToken, getJaToken } from "../../lib/jaAuth";
 
 export default function JaAdminProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -50,9 +52,10 @@ export default function JaAdminProtectedLayout({ children }: { children: React.R
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-950">
-      <JaAdminSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="px-6 py-8 lg:px-10 lg:py-10">
+      <JaAdminSidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <main className="flex-1 overflow-y-auto w-full">
+        <MobileHeader onMenuClick={() => setMobileMenuOpen(true)} title="JA Admin" />
+        <div className="px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
           {children}
         </div>
       </main>

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { clearJaToken, getJaUser } from "../lib/jaAuth";
 import { useEffect, useState } from "react";
 
-export default function JaAdminSidebar() {
+export default function JaAdminSidebar({ isOpen = false, onClose = () => {} }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
@@ -71,7 +71,19 @@ export default function JaAdminSidebar() {
   ];
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-zinc-800/60 bg-zinc-950">
+    <>
+      {/* Mobile backdrop */}
+      <div 
+        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`} 
+        onClick={onClose}
+      />
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-zinc-800/60 bg-zinc-950 transition-transform duration-300 lg:static lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 py-6 border-b border-zinc-800/60">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/20 border border-violet-500/30">
@@ -96,6 +108,7 @@ export default function JaAdminSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                 isActive
                   ? "bg-violet-500/15 text-violet-200 border border-violet-500/20"
@@ -138,5 +151,6 @@ export default function JaAdminSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }
