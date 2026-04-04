@@ -855,7 +855,6 @@ export default function Home() {
                 </button>
               </div>
             </div>
-          </div>
         </div>
 
         <aside className="subtle-card relative flex flex-col justify-between p-5 sm:p-6 lg:p-7">

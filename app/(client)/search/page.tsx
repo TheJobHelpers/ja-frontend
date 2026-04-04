@@ -27,6 +27,7 @@ interface FormData {
   salaryMin: string;
   salaryMax: string;
   jobType: string;
+  employmentType: string;
   city: string;
   country: string;
   datePosted: string;
@@ -249,10 +250,13 @@ export default function ClientSearchPage() {
     salaryMin: "",
     salaryMax: "",
     jobType: "",
+    employmentType: "",
     city: "",
     country: "",
     datePosted: "",
   });
+
+  const [selectedSource, setSelectedSource] = useState<"jsearch" | "indeed" | "linkedin" | null>(null);
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
@@ -662,6 +666,7 @@ export default function ClientSearchPage() {
         ...formData,
         salaryMin: formData.salaryMin ? formData.salaryMin.replace(/,/g, "") : "",
         salaryMax: formData.salaryMax ? formData.salaryMax.replace(/,/g, "") : "",
+        employmentType: formData.employmentType || "",
       };
 
       // Use SSE streaming for all services
@@ -962,127 +967,113 @@ export default function ClientSearchPage() {
               </div>
             </div>
           </div>
+          {/* Source Selector */}
+          <div className="mb-4 rounded-2xl border border-white/10 bg-black/30 p-4 sm:p-5">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Step 1 — Select search source</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { key: "jsearch" as const, label: "JSearch", dot: "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]" },
+                { key: "linkedin" as const, label: "LinkedIn", dot: "bg-indigo-400" },
+                { key: "indeed" as const, label: "Indeed", dot: "bg-emerald-400" },
+              ] as const).map((src) => (
+                <button key={src.key} type="button"
+                  onClick={() => {
+                    setSelectedSource(src.key);
+                    setFormData(prev => ({
+                      ...prev, jobType: "", employmentType: "",
+                      ...(src.key === "indeed" ? { salaryMin: "", salaryMax: "", industry: "" } : {}),
+                      ...(src.key === "linkedin" ? { salaryMin: "", salaryMax: "" } : {}),
+                    }));
+                  }}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
+                    selectedSource === src.key
+                      ? "border-sky-400/60 bg-sky-500/20 text-sky-200 ring-2 ring-sky-500/30"
+                      : "border-zinc-700/60 bg-zinc-800/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === src.key ? src.dot : "bg-zinc-600"}`} />
+                  {src.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <div className="space-y-4 rounded-2xl border border-white/5 bg-black/40 p-4 sm:p-5">
+          <div className={`space-y-4 rounded-2xl border border-white/5 bg-black/40 p-4 sm:p-5 transition-opacity ${!selectedSource ? "opacity-40 pointer-events-none" : ""}`}>
+            {!selectedSource && (
+              <div className="text-center py-2 text-sm text-zinc-400">Select a search source above to configure filters</div>
+            )}
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)]">
               <div className="space-y-3">
-                <label
-                  htmlFor="jobTitle"
-                  className="flex items-center justify-between text-xs font-medium text-zinc-200"
-                >
+                <label htmlFor="jobTitle" className="flex items-center justify-between text-xs font-medium text-zinc-200">
                   <span>Role or title *</span>
-                  <span className="text-[11px] text-zinc-400">
-                    Try &ldquo;Senior Backend Engineer&rdquo;
-                  </span>
+                  <span className="text-[11px] text-zinc-400">Try &ldquo;Senior Backend Engineer&rdquo;</span>
                 </label>
-                <input
-                  type="text"
-                  id="jobTitle"
-                  name="jobTitle"
-                  value={formData.jobTitle}
-                  onChange={handleInputChange}
+                <input type="text" id="jobTitle" name="jobTitle" value={formData.jobTitle} onChange={handleInputChange}
                   placeholder="e.g., Staff Frontend Engineer"
                   className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3.5 py-2.5 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50"
                   required
                 />
               </div>
-
+              {selectedSource !== "indeed" && (
               <div className="space-y-3">
-                <label
-                  htmlFor="industry"
-                  className="flex items-center justify-between text-xs font-medium text-zinc-200"
-                >
+                <label htmlFor="industry" className="flex items-center justify-between text-xs font-medium text-zinc-200">
                   <span>Industry</span>
-                  <span className="text-[11px] text-zinc-400">
-                    Optional focus (fintech, AI, etc.)
-                  </span>
+                  <span className="text-[11px] text-zinc-400">Optional focus (fintech, AI, etc.)</span>
                 </label>
-                <input
-                  type="text"
-                  id="industry"
-                  name="industry"
-                  value={formData.industry}
-                  onChange={handleInputChange}
+                <input type="text" id="industry" name="industry" value={formData.industry} onChange={handleInputChange}
                   placeholder="e.g., Developer tools / AI infra"
                   className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3.5 py-2.5 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50"
                 />
               </div>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2.5">
-                <label
-                  htmlFor="salaryMin"
-                  className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400"
-                >
-                  Min salary (USD)
-                </label>
-                <input
-                  type="text"
-                  id="salaryMin"
-                  name="salaryMin"
-                  value={formData.salaryMin}
-                  onChange={handleInputChange}
-                  placeholder="80,000"
-                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50"
-                />
-              </div>
+              {selectedSource === "jsearch" && (
+                <>
+                  <div className="space-y-2.5">
+                    <label htmlFor="salaryMin" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Min salary (USD)</label>
+                    <input type="text" id="salaryMin" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange}
+                      placeholder="80,000" className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50" />
+                  </div>
+                  <div className="space-y-2.5">
+                    <label htmlFor="salaryMax" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Max salary (USD)</label>
+                    <input type="text" id="salaryMax" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange}
+                      placeholder="220,000" className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50" />
+                  </div>
+                </>
+              )}
+
+              {selectedSource !== "indeed" && (
+                <div className="space-y-2.5">
+                  <label htmlFor="jobType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Work style</label>
+                  <select id="jobType" name="jobType" value={formData.jobType} onChange={handleInputChange}
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
+                    <option value="">Any</option>
+                    <option value="Remote">Remote</option>
+                    {selectedSource === "jsearch" && (<><option value="On-site">On-site</option><option value="Hybrid">Hybrid</option></>)}
+                  </select>
+                </div>
+              )}
+
+              {(selectedSource === "jsearch" || selectedSource === "linkedin") && (
+                <div className="space-y-2.5">
+                  <label htmlFor="employmentType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Employment type</label>
+                  <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleInputChange}
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
+                    <option value="">Any</option>
+                    <option value="Fulltime">Full-time</option>
+                    <option value="Parttime">Part-time</option>
+                    <option value="Contractor">Contractor</option>
+                    <option value="Intern">Intern</option>
+                  </select>
+                </div>
+              )}
 
               <div className="space-y-2.5">
-                <label
-                  htmlFor="salaryMax"
-                  className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400"
-                >
-                  Max salary (USD)
-                </label>
-                <input
-                  type="text"
-                  id="salaryMax"
-                  name="salaryMax"
-                  value={formData.salaryMax}
-                  onChange={handleInputChange}
-                  placeholder="220,000"
-                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50"
-                />
-              </div>
-
-              <div className="space-y-2.5">
-                <label
-                  htmlFor="jobType"
-                  className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400"
-                >
-                  Work style / type
-                </label>
-                <select
-                  id="jobType"
-                  name="jobType"
-                  value={formData.jobType}
-                  onChange={handleInputChange}
-                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50"
-                >
-                  <option value="">Any</option>
-                  <option value="Remote">Remote</option>
-                  <option value="On-site">On-site</option>
-                  <option value="Hybrid">Hybrid</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                </select>
-              </div>
-
-              <div className="space-y-2.5">
-                <label
-                  htmlFor="datePosted"
-                  className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400"
-                >
-                  Freshness
-                </label>
-                <select
-                  id="datePosted"
-                  name="datePosted"
-                  value={formData.datePosted}
-                  onChange={handleInputChange}
-                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50"
-                >
+                <label htmlFor="datePosted" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Freshness</label>
+                <select id="datePosted" name="datePosted" value={formData.datePosted} onChange={handleInputChange}
+                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
                   <option value="">Any time</option>
                   <option value="today">Past 24 hours</option>
                   <option value="week">Past week</option>
@@ -1093,140 +1084,48 @@ export default function ClientSearchPage() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2.5">
-                <label
-                  htmlFor="city"
-                  className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400"
-                >
-                  City (optional)
-                </label>
-                <input
-                  type="text"
-                  id="city"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
+                <label htmlFor="city" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">City (optional)</label>
+                <input type="text" id="city" name="city" value={formData.city} onChange={handleInputChange}
                   placeholder="San Francisco, London..."
                   className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50"
                 />
               </div>
-
               <div className="space-y-2.5 relative" ref={countryDropdownRef}>
-                <label
-                  htmlFor="country"
-                  className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400"
-                >
-                  Country / region
-                </label>
-                <button
-                  type="button"
-                  id="country"
-                  onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
-                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-left text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50 flex items-center justify-between gap-2"
-                >
+                <label htmlFor="country" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Country / region</label>
+                <button type="button" id="country" onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                  className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-left text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50 flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 truncate">
-                    {selectedCountry ? (
-                      <>
-                        <img
-                          src={`https://flagcdn.com/w20/${selectedCountry.code.toLowerCase()}.png`}
-                          alt={selectedCountry.name}
-                          className="h-4 w-5 object-cover rounded-sm"
-                        />
-                        <span>{selectedCountry.name}</span>
-                      </>
-                    ) : (
-                      <span className="text-zinc-400">Select country...</span>
-                    )}
+                    {selectedCountry ? (<><img src={`https://flagcdn.com/w20/${selectedCountry.code.toLowerCase()}.png`} alt={selectedCountry.name} className="h-4 w-5 object-cover rounded-sm" /><span>{selectedCountry.name}</span></>) : (<span className="text-zinc-400">Select country...</span>)}
                   </span>
-                  <svg
-                    className={`h-4 w-4 text-zinc-400 transition-transform ${
-                      countryDropdownOpen ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  <svg className={`h-4 w-4 text-zinc-400 transition-transform ${countryDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </button>
-
                 {countryDropdownOpen && (
                   <div className="absolute z-50 mt-1 w-full max-h-60 overflow-hidden rounded-lg border border-white/20 bg-zinc-800/95 shadow-xl backdrop-blur-sm">
                     <div className="sticky top-0 p-2 border-b border-white/10 bg-zinc-800/95">
-                      <input
-                        type="text"
-                        placeholder="Search countries..."
-                        value={countrySearch}
-                        onChange={(e) => setCountrySearch(e.target.value)}
-                        className="w-full rounded-md border border-white/20 bg-zinc-700/90 px-3 py-1.5 text-sm text-zinc-50 outline-none placeholder:text-zinc-400 focus:border-sky-400/70"
-                        autoFocus
-                      />
+                      <input type="text" placeholder="Search countries..." value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
+                        className="w-full rounded-md border border-white/20 bg-zinc-700/90 px-3 py-1.5 text-sm text-zinc-50 outline-none placeholder:text-zinc-400 focus:border-sky-400/70" autoFocus />
                     </div>
                     <div className="max-h-48 overflow-y-auto">
-                      {/* Any Country option */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, country: "" }));
-                          setCountryDropdownOpen(false);
-                          setCountrySearch("");
-                        }}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2 transition ${
-                          !formData.country
-                            ? "bg-sky-500/20 text-sky-200"
-                            : "text-zinc-50"
-                        }`}
-                      >
-                        <span className="text-base">🌐</span>
-                        <span>Any country</span>
+                      <button type="button" onClick={() => { setFormData((prev) => ({ ...prev, country: "" })); setCountryDropdownOpen(false); setCountrySearch(""); }}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2 transition ${!formData.country ? "bg-sky-500/20 text-sky-200" : "text-zinc-50"}`}>
+                        <span className="text-base">🌐</span><span>Any country</span>
                       </button>
                       {filteredCountries.map((country) => (
-                        <button
-                          type="button"
-                          key={country.code}
-                          onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              country: country.code,
-                            }));
-                            setCountryDropdownOpen(false);
-                            setCountrySearch("");
-                          }}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2 transition ${
-                            formData.country === country.code
-                              ? "bg-sky-500/20 text-sky-200"
-                              : "text-zinc-50"
-                          }`}
-                        >
-                          <img
-                            src={`https://flagcdn.com/w20/${country.code.toLowerCase()}.png`}
-                            alt={country.name}
-                            className="h-4 w-5 object-cover rounded-sm"
-                          />
+                        <button type="button" key={country.code}
+                          onClick={() => { setFormData((prev) => ({ ...prev, country: country.code })); setCountryDropdownOpen(false); setCountrySearch(""); }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2 transition ${formData.country === country.code ? "bg-sky-500/20 text-sky-200" : "text-zinc-50"}`}>
+                          <img src={`https://flagcdn.com/w20/${country.code.toLowerCase()}.png`} alt={country.name} className="h-4 w-5 object-cover rounded-sm" />
                           <span>{country.name}</span>
-                          <span className="ml-auto text-[10px] text-zinc-500">
-                            {country.code}
-                          </span>
+                          <span className="ml-auto text-[10px] text-zinc-500">{country.code}</span>
                         </button>
                       ))}
-                      {filteredCountries.length === 0 && (
-                        <div className="px-3 py-4 text-center text-sm text-zinc-400">
-                          No countries found
-                        </div>
-                      )}
+                      {filteredCountries.length === 0 && (<div className="px-3 py-4 text-center text-sm text-zinc-400">No countries found</div>)}
                     </div>
                   </div>
                 )}
               </div>
-
               <div className="flex items-end justify-end gap-2">
-                <p className="hidden text-[11px] text-zinc-400 sm:inline">
-                  Powered by curated job APIs. No spammy listings.
-                </p>
+                <p className="hidden text-[11px] text-zinc-400 sm:inline">Powered by curated job APIs. No spammy listings.</p>
               </div>
             </div>
 
@@ -1249,115 +1148,35 @@ export default function ClientSearchPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 w-full xl:w-auto">                <div className="group relative w-full">
-                  <button
-                    onClick={() => {
-                      if (loading && activeService === "linkedin") {
-                        handleStopSearch();
-                      } else {
-                        handleSearch("linkedin");
-                      }
-                    }}
-                    disabled={
-                      disabledSearch && !(loading && activeService === "linkedin")
-                    }
-                    className={`w-full inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold text-zinc-50 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      loading && activeService === "linkedin"
-                        ? "border-red-400/60 bg-red-900/60 shadow-[0_10px_30px_rgba(127,29,29,0.75)] hover:border-red-400/80 hover:bg-red-900/70"
-                        : "border-indigo-400/60 bg-slate-900/70 shadow-[0_10px_30px_rgba(30,64,175,0.75)] hover:border-sky-400/70 hover:bg-slate-900/80"
-                    }`}
-                  >
-                    {loading && activeService === "linkedin" ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-red-400" />
-                        <span className="cursor-pointer">Stop</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                        <span className="cursor-pointer">Search via LinkedIn</span>
-                      </span>
-                    )}
-                  </button>
-                  {searchAttemptsExhausted && (
-                    <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 shadow-xl border border-zinc-700">
-                      Weekly search limit reached.
-                    </div>
+              <div className="group relative">
+                <button
+                  onClick={() => { loading && activeService === selectedSource ? handleStopSearch() : selectedSource && handleSearch(selectedSource); }}
+                  disabled={(disabledSearch || !selectedSource) && !(loading && activeService)}
+                  className={`w-full xl:w-auto inline-flex items-center justify-center gap-2 rounded-lg border px-8 py-2.5 text-sm font-semibold text-zinc-50 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    loading && activeService
+                      ? "border-red-400/60 bg-red-900/60 shadow-[0_10px_30px_rgba(127,29,29,0.75)] hover:border-red-400/80 hover:bg-red-900/70"
+                      : selectedSource === "jsearch"
+                      ? "border-sky-400/60 bg-slate-900/60 shadow-[0_10px_35px_rgba(56,189,248,0.85)] hover:border-sky-400/80 hover:bg-slate-900/70"
+                      : selectedSource === "linkedin"
+                      ? "border-indigo-400/60 bg-slate-900/70 shadow-[0_10px_30px_rgba(30,64,175,0.75)] hover:border-violet-400/70 hover:bg-slate-900/80"
+                      : selectedSource === "indeed"
+                      ? "border-emerald-400/60 bg-slate-900/60 shadow-[0_10px_30px_rgba(6,95,70,0.85)] hover:border-emerald-400/80 hover:bg-slate-900/70"
+                      : "border-zinc-600 bg-zinc-800/60"
+                  }`}>
+                  {loading && activeService ? (
+                    <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span>Stop</span></span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === "jsearch" ? "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]" : selectedSource === "linkedin" ? "bg-indigo-400" : selectedSource === "indeed" ? "bg-emerald-400" : "bg-zinc-500"}`} />
+                      <span>{selectedSource ? `Search via ${selectedSource === "jsearch" ? "JSearch" : selectedSource === "linkedin" ? "LinkedIn" : "Indeed"}` : "Select a source"}</span>
+                    </span>
                   )}
-                </div>
-                <div className="group relative w-full">
-                  <button
-                    onClick={() => {
-                      if (loading && activeService === "jsearch") {
-                        handleStopSearch();
-                      } else {
-                        handleSearch("jsearch");
-                      }
-                    }}
-                    disabled={
-                      disabledSearch && !(loading && activeService === "jsearch")
-                    }
-                    className={`w-full inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold text-zinc-50 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      loading && activeService === "jsearch"
-                        ? "border-red-400/60 bg-red-900/60 shadow-[0_10px_30px_rgba(127,29,29,0.75)] hover:border-red-400/80 hover:bg-red-900/70"
-                        : "border-sky-400/60 bg-slate-900/60 shadow-[0_10px_35px_rgba(56,189,248,0.85)] hover:border-sky-400/80 hover:bg-slate-900/70"
-                    }`}
-                  >
-                    {loading && activeService === "jsearch" ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-red-400" />
-                        <span className="cursor-pointer">Stop</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]" />
-                        <span className="cursor-pointer">Search via JSearch</span>
-                      </span>
-                    )}
-                  </button>
-                  {searchAttemptsExhausted && (
-                    <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 shadow-xl border border-zinc-700">
-                      Weekly search limit reached.
-                    </div>
-                  )}
-                </div>
-
-                <div className="group relative w-full">
-                  <button
-                    onClick={() => {
-                      if (loading && activeService === "indeed") {
-                        handleStopSearch();
-                      } else {
-                        handleSearch("indeed");
-                      }
-                    }}
-                    disabled={
-                      disabledSearch && !(loading && activeService === "indeed")
-                    }
-                    className={`w-full inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold text-zinc-50 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      loading && activeService === "indeed"
-                        ? "border-red-400/60 bg-red-900/60 shadow-[0_10px_30px_rgba(127,29,29,0.75)] hover:border-red-400/80 hover:bg-red-900/70"
-                        : "border-emerald-400/60 bg-slate-900/60 shadow-[0_10px_30px_rgba(6,95,70,0.85)] hover:border-emerald-400/80 hover:bg-slate-900/70"
-                    }`}
-                  >
-                    {loading && activeService === "indeed" ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-red-400" />
-                        <span className="cursor-pointer">Stop</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        <span className="cursor-pointer">Search via Indeed</span>
-                      </span>
-                    )}
-                  </button>
-                  {searchAttemptsExhausted && (
-                    <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 shadow-xl border border-zinc-700">
-                      Weekly search limit reached.
-                    </div>
-                  )}
-                </div>
+                </button>
+                {searchAttemptsExhausted && (
+                  <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 shadow-xl border border-zinc-700">
+                    Weekly search limit reached.
+                  </div>
+                )}
               </div>
             </div>
           </div>
