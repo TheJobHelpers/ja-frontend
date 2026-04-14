@@ -469,10 +469,7 @@ export default function AdminSearchPage() {
                       // Reset filters that the new source doesn't support
                       setFormData(prev => ({
                         ...prev,
-                        jobType: "",
-                        employmentType: "",
-                        ...(src.key === "indeed" ? { salaryMin: "", salaryMax: "", industry: "" } : {}),
-                        ...(src.key === "linkedin" ? { salaryMin: "", salaryMax: "" } : {}),
+                        ...(src.key === "linkedin" ? { industry: "" } : {}),
                       }));
                     }}
                     className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
@@ -511,7 +508,7 @@ export default function AdminSearchPage() {
                     required
                   />
                 </div>
-                {selectedSource !== "indeed" && (
+                {selectedSource !== "linkedin" && (
                 <div className="space-y-3">
                   <label htmlFor="industry" className="flex items-center justify-between text-xs font-medium text-zinc-200">
                     <span>Industry</span>
@@ -526,58 +523,43 @@ export default function AdminSearchPage() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Salary — JSearch only */}
-                {selectedSource === "jsearch" && (
-                  <>
-                    <div className="space-y-2.5">
-                      <label htmlFor="salaryMin" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Min salary (USD)</label>
-                      <input type="text" id="salaryMin" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange}
-                        placeholder="80,000"
-                        className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/50"
-                      />
-                    </div>
-                    <div className="space-y-2.5">
-                      <label htmlFor="salaryMax" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Max salary (USD)</label>
-                      <input type="text" id="salaryMax" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange}
-                        placeholder="220,000"
-                        className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/50"
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2.5">
+                  <label htmlFor="salaryMin" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Min salary (USD/yr)</label>
+                  <input type="text" id="salaryMin" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange}
+                    placeholder="80,000"
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/50"
+                  />
+                </div>
+                <div className="space-y-2.5">
+                  <label htmlFor="salaryMax" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Max salary (USD/yr)</label>
+                  <input type="text" id="salaryMax" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange}
+                    placeholder="220,000"
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/50"
+                  />
+                </div>
 
-                {/* Work Style — JSearch: full options, LinkedIn: Remote only, Indeed: hidden */}
-                {selectedSource !== "indeed" && (
-                  <div className="space-y-2.5">
-                    <label htmlFor="jobType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Work style</label>
-                    <select id="jobType" name="jobType" value={formData.jobType} onChange={handleInputChange}
-                      className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-purple-400/70 focus:ring-2 focus:ring-purple-500/50">
-                      <option value="">Any</option>
-                      <option value="Remote">Remote</option>
-                      {selectedSource === "jsearch" && (
-                        <>
-                          <option value="On-site">On-site</option>
-                          <option value="Hybrid">Hybrid</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2.5">
+                  <label htmlFor="jobType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Work style</label>
+                  <select id="jobType" name="jobType" value={formData.jobType} onChange={handleInputChange}
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-purple-400/70 focus:ring-2 focus:ring-purple-500/50">
+                    <option value="">Any</option>
+                    <option value="Remote">Remote</option>
+                    <option value="On-site">On-site</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
 
-                {/* Employment Type — JSearch & LinkedIn only */}
-                {(selectedSource === "jsearch" || selectedSource === "linkedin") && (
-                  <div className="space-y-2.5">
-                    <label htmlFor="employmentType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Employment type</label>
-                    <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleInputChange}
-                      className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-purple-400/70 focus:ring-2 focus:ring-purple-500/50">
-                      <option value="">Any</option>
-                      <option value="Fulltime">Full-time</option>
-                      <option value="Parttime">Part-time</option>
-                      <option value="Contractor">Contractor</option>
-                      <option value="Intern">Intern</option>
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2.5">
+                  <label htmlFor="employmentType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Employment type</label>
+                  <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleInputChange}
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-purple-400/70 focus:ring-2 focus:ring-purple-500/50">
+                    <option value="">Any</option>
+                    <option value="Fulltime">Full-time</option>
+                    <option value="Parttime">Part-time</option>
+                    <option value="Contractor">Contractor</option>
+                    <option value="Intern">Intern</option>
+                  </select>
+                </div>
 
                 {/* Freshness — all sources */}
                 <div className="space-y-2.5">

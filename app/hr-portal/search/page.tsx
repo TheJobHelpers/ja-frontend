@@ -642,9 +642,8 @@ export default function Home() {
                     onClick={() => {
                       setSelectedSource(src.key);
                       setFormData(prev => ({
-                        ...prev, jobType: "", employmentType: "",
-                        ...(src.key === "indeed" ? { salaryMin: "", salaryMax: "", industry: "" } : {}),
-                        ...(src.key === "linkedin" ? { salaryMin: "", salaryMax: "" } : {}),
+                        ...prev,
+                        ...(src.key === "linkedin" ? { industry: "" } : {}),
                       }));
                     }}
                     className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
@@ -679,7 +678,7 @@ export default function Home() {
                     required
                   />
                 </div>
-                {selectedSource !== "indeed" && (
+                {selectedSource !== "linkedin" && (
                 <div className="space-y-3">
                   <label htmlFor="industry" className="flex items-center justify-between text-xs font-medium text-zinc-200">
                     <span>Industry</span>
@@ -694,46 +693,39 @@ export default function Home() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {selectedSource === "jsearch" && (
-                  <>
-                    <div className="space-y-2.5">
-                      <label htmlFor="salaryMin" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Min salary (USD)</label>
-                      <input type="text" id="salaryMin" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange}
-                        placeholder="80,000" className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50" />
-                    </div>
-                    <div className="space-y-2.5">
-                      <label htmlFor="salaryMax" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Max salary (USD)</label>
-                      <input type="text" id="salaryMax" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange}
-                        placeholder="220,000" className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50" />
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2.5">
+                  <label htmlFor="salaryMin" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Min salary (USD/yr)</label>
+                  <input type="text" id="salaryMin" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange}
+                    placeholder="80,000" className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50" />
+                </div>
+                <div className="space-y-2.5">
+                  <label htmlFor="salaryMax" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Max salary (USD/yr)</label>
+                  <input type="text" id="salaryMax" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange}
+                    placeholder="220,000" className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-500/50" />
+                </div>
 
-                {selectedSource !== "indeed" && (
-                  <div className="space-y-2.5">
-                    <label htmlFor="jobType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Work style</label>
-                    <select id="jobType" name="jobType" value={formData.jobType} onChange={handleInputChange}
-                      className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
-                      <option value="">Any</option>
-                      <option value="Remote">Remote</option>
-                      {selectedSource === "jsearch" && (<><option value="On-site">On-site</option><option value="Hybrid">Hybrid</option></>)}
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2.5">
+                  <label htmlFor="jobType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Work style</label>
+                  <select id="jobType" name="jobType" value={formData.jobType} onChange={handleInputChange}
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
+                    <option value="">Any</option>
+                    <option value="Remote">Remote</option>
+                    <option value="On-site">On-site</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
 
-                {(selectedSource === "jsearch" || selectedSource === "linkedin") && (
-                  <div className="space-y-2.5">
-                    <label htmlFor="employmentType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Employment type</label>
-                    <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleInputChange}
-                      className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
-                      <option value="">Any</option>
-                      <option value="Fulltime">Full-time</option>
-                      <option value="Parttime">Part-time</option>
-                      <option value="Contractor">Contractor</option>
-                      <option value="Intern">Intern</option>
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2.5">
+                  <label htmlFor="employmentType" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Employment type</label>
+                  <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleInputChange}
+                    className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-500/50">
+                    <option value="">Any</option>
+                    <option value="Fulltime">Full-time</option>
+                    <option value="Parttime">Part-time</option>
+                    <option value="Contractor">Contractor</option>
+                    <option value="Intern">Intern</option>
+                  </select>
+                </div>
 
                 <div className="space-y-2.5">
                   <label htmlFor="datePosted" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Freshness</label>
