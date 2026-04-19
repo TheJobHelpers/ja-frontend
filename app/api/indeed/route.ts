@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
     const useStream = url.searchParams.get("stream") === "true";
+    const bypassCache = url.searchParams.get("bypass_cache") === "true";
 
     // Forward the request to the backend
     const headers: HeadersInit = {
@@ -19,10 +20,11 @@ export async function POST(request: NextRequest) {
       headers["X-API-Key"] = API_KEY;
     }
 
-    // Use streaming endpoint if requested
-    const endpoint = useStream
+    // Use streaming endpoint if requested; append bypass_cache when set
+    const baseEndpoint = useStream
       ? `${BACKEND_URL}/api/jobs/indeed/stream`
       : `${BACKEND_URL}/api/jobs/indeed`;
+    const endpoint = bypassCache ? `${baseEndpoint}?bypass_cache=true` : baseEndpoint;
 
     const response = await fetch(endpoint, {
       method: "POST",
