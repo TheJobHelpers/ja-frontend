@@ -59,7 +59,7 @@ export async function proxyRequest(
   } catch (error: unknown) {
     console.error(`[JA Proxy] ${method} ${backendPath} failed:`, error);
     return NextResponse.json(
-      { error: "Backend unavailable", details: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Backend Unavailable", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 502 }
     );
   }

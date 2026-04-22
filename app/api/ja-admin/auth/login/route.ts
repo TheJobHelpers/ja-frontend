@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("[JA Auth] Login proxy failed:", error);
     return NextResponse.json(
-      { error: "Backend unavailable" },
+      { error: "Backend Unavailable" },
       { status: 502 }
     );
   }
