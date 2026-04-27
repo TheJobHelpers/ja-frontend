@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { apiGet } from "../../lib/api";
-import { getClientToken } from "../../lib/clientAuth";
+
 
 interface ClientProfile {
   name: string;
@@ -26,10 +26,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function loadUser() {
-      const token = getClientToken();
-      if (!token) return;
       try {
-        const data = await apiGet<{ full_name?: string; name?: string; email?: string; current_title?: string; target_role?: string; industry?: string; preferred_location?: string; work_type?: string; linkedin_url?: string; referral_source?: string }>("/api/client/auth/me", token);
+        const data = await apiGet<{ full_name?: string; name?: string; email?: string; current_title?: string; target_role?: string; industry?: string; preferred_location?: string; work_type?: string; linkedin_url?: string; referral_source?: string }>("/api/client/auth/me");
         if (data) {
           setUser({
             name: data.full_name || data.name || "Client",

@@ -17,10 +17,15 @@ export async function proxyRequest(
     "Content-Type": "application/json",
   };
 
-  // Forward auth header
+  // Forward auth header and cookies
   const authHeader = req.headers.get("authorization");
   if (authHeader) {
     headers["Authorization"] = authHeader;
+  }
+  
+  const cookieHeader = req.headers.get("cookie");
+  if (cookieHeader) {
+    headers["Cookie"] = cookieHeader;
   }
 
   // Build body for non-GET requests
@@ -45,9 +50,17 @@ export async function proxyRequest(
       signal: AbortSignal.timeout(timeout),
     });
 
+    // Extract headers to pass back
+    const responseHeaders = new Headers();
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) {
+      responseHeaders.set("set-cookie", setCookie);
+    }
+    responseHeaders.set("Content-Type", "application/json");
+
     // 204 No Content — nothing to parse (DELETE responses)
     if (res.status === 204) {
-      return new NextResponse(null, { status: 204 });
+      return new NextResponse(null, { status: 204, headers: responseHeaders });
     }
 
     const data = await res.json();
@@ -55,11 +68,11 @@ export async function proxyRequest(
     if (!res.ok) {
       return NextResponse.json(
         { error: data.detail || data.error || "Backend request failed" },
-        { status: res.status }
+        { status: res.status, headers: responseHeaders }
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: responseHeaders });
   } catch (error: unknown) {
     console.error(`[JA Proxy] ${method} ${backendPath} failed:`, error);
     return NextResponse.json(

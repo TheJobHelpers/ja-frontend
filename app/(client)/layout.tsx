@@ -4,14 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ClientSidebar from "../components/ClientSidebar";
 import MobileHeader from "../components/MobileHeader";
-import { clearClientToken } from "../lib/clientAuth";
-
-
-
-function getClientAuthStatus(): boolean {
-  if (typeof window === "undefined") return true; // Assume true on server to prevent flash
-  return !!document.cookie.match(new RegExp('(^| )client_access_token=([^;]+)')) || !!localStorage.getItem("client_access_token");
-}
+import { isClientAuthenticated, clearClientToken } from "../lib/clientAuth";
 
 export default function ClientLayout({
   children,
@@ -25,7 +18,7 @@ export default function ClientLayout({
 
   useEffect(() => {
     const checkAuth = () => {
-      const authed = getClientAuthStatus();
+      const authed = isClientAuthenticated();
       setIsAuthed(authed);
       setIsMounted(true);
       if (!authed) {

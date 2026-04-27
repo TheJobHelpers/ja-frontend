@@ -1,71 +1,33 @@
 // ─── Client Auth Helpers ─────────────────────────────────────
-// Uses a SEPARATE token key from HR to avoid conflicts
+// Now uses HttpOnly cookies managed by the browser.
+// Local storage and JS-accessible cookies are only used for UI state, not for tokens.
 
-const CLIENT_TOKEN_KEY = "client_access_token";
-const CLIENT_TOKEN_TYPE_KEY = "client_token_type";
+const LOGGED_IN_KEY = "client_is_logged_in";
 
-function getCookie(name: string): string | null {
-  if (typeof window === "undefined") return null;
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  if (match) return decodeURIComponent(match[2]);
+export function getClientToken(): string | null {
+  // We can no longer read the token from JS if it is HttpOnly.
+  // This function is kept for backward compatibility with existing API calls
+  // that might still be manually adding the Bearer header.
   return null;
 }
 
-function setCookie(name: string, value: string, days = 7) {
-  if (typeof window === "undefined") return;
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
-}
-
-function deleteCookie(name: string) {
-  if (typeof window === "undefined") return;
-  document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-}
-
-export function getClientToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return getCookie(CLIENT_TOKEN_KEY) || localStorage.getItem(CLIENT_TOKEN_KEY);
-}
-
-export function setClientToken(token: string, tokenType: string = "bearer"): void {
-  localStorage.setItem(CLIENT_TOKEN_KEY, token);
-  localStorage.setItem(CLIENT_TOKEN_TYPE_KEY, tokenType);
-  setCookie(CLIENT_TOKEN_KEY, token);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function setClientToken(_token: string, _tokenType: string = "bearer"): void {
+  // The token is now set via Set-Cookie header from the backend.
+  // We only set a flag for the UI to know we are logged in.
+  if (typeof window !== "undefined") {
+    localStorage.setItem(LOGGED_IN_KEY, "true");
+  }
 }
 
 export function clearClientToken(): void {
-  localStorage.removeItem(CLIENT_TOKEN_KEY);
-  localStorage.removeItem(CLIENT_TOKEN_TYPE_KEY);
-  deleteCookie(CLIENT_TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(LOGGED_IN_KEY);
+    // Note: The actual HttpOnly cookie must be cleared by the backend /logout endpoint.
+  }
 }
 
 export function isClientAuthenticated(): boolean {
-  const token = getClientToken();
-  if (!token) return false;
-
-  try {
-    if (token.startsWith("mock_")) {
-      const payloadStr = atob(token.replace("mock_", ""));
-      const payload = JSON.parse(payloadStr);
-      if (payload.exp && Date.now() > payload.exp) {
-        clearClientToken();
-        return false;
-      }
-      return true;
-    }
-
-    const parts = token.split(".");
-    if (parts.length === 3) {
-      const payloadStr = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-      const payload = JSON.parse(payloadStr);
-      if (payload.exp && Date.now() >= payload.exp * 1000) {
-        clearClientToken();
-        return false;
-      }
-    }
-  } catch {
-    // Ignore decode errors, token might be opaque
-  }
-
-  return true;
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(LOGGED_IN_KEY) === "true";
 }

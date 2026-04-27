@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { setJaToken } from "../../lib/jaAuth";
+import { setJaToken, isJaAuthenticated } from "../../lib/jaAuth";
 
 export default function JaAdminLoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (isJaAuthenticated()) {
+      router.push("/ja-admin/dashboard");
+    }
+  }, [router]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import JaAdminSidebar from "../../components/JaAdminSidebar";
 import MobileHeader from "../../components/MobileHeader";
-import { clearJaToken, getJaToken } from "../../lib/jaAuth";
+import { clearJaToken, isJaAuthenticated } from "../../lib/jaAuth";
 
 export default function JaAdminProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -15,15 +15,29 @@ export default function JaAdminProtectedLayout({ children }: { children: React.R
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
-    // Use cookie/localStorage check that correctly determines auth on mount
-    setIsAuthed(!!getJaToken());
+  }, []);
 
-    const handleStorage = () => setIsAuthed(!!getJaToken());
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const authed = isJaAuthenticated();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsAuthed(authed);
+    if (!authed) {
+      router.push("/ja-admin/login");
+    }
+
+    const handleStorage = () => {
+      const stillAuthed = isJaAuthenticated();
+      setIsAuthed(stillAuthed);
+      if (!stillAuthed) router.push("/ja-admin/login");
+    };
     window.addEventListener("storage", handleStorage);
 
     const handleUnauthorized = () => {
       clearJaToken();
       setIsAuthed(false);
+      router.push("/ja-admin/login");
     };
 
     window.addEventListener("auth:unauthorized", handleUnauthorized as EventListener);
@@ -31,7 +45,7 @@ export default function JaAdminProtectedLayout({ children }: { children: React.R
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("auth:unauthorized", handleUnauthorized as EventListener);
     };
-  }, []);
+  }, [isMounted, router]);
 
   // Prevent hydration mismatch
   if (!isMounted) {

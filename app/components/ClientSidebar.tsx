@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { getClientToken, clearClientToken } from "../lib/clientAuth";
-import { apiGet } from "../lib/api";
+import { clearClientToken } from "../lib/clientAuth";
+import { apiGet, apiPost } from "../lib/api";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_ITEMS = [
@@ -48,11 +48,9 @@ export default function ClientSidebar({ isOpen = false, onClose = () => {} }: { 
 
   useEffect(() => {
     async function fetchProfile() {
-      const token = getClientToken();
-      if (!token) return;
       try {
         interface MeResponse { name?: string; full_name?: string; current_title?: string; initials?: string }
-        const data = await apiGet<MeResponse>("/api/client/auth/me", token);
+        const data = await apiGet<MeResponse>("/api/client/auth/me");
         const name = data?.name || data?.full_name;
         if (name) {
           const parts = name.trim().split(/\s+/);
@@ -73,7 +71,12 @@ export default function ClientSidebar({ isOpen = false, onClose = () => {} }: { 
     fetchProfile();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiPost("/api/client/auth/logout", {});
+    } catch {
+      // Ignore errors during logout
+    }
     clearClientToken();
     window.location.href = "/login";
   };

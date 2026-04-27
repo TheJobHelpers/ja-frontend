@@ -319,13 +319,8 @@ export default function ClientSearchPage() {
     // 2. Fetch real quota + history + existing jobs from backend asynchronously
     (async () => {
       try {
-        const { getClientToken } = await import("../../lib/clientAuth");
-        const token = getClientToken();
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
         // Quota
-        const statsRes = await fetch("/api/client/jobs/stats", { headers });
+        const statsRes = await fetch("/api/client/jobs/stats", { credentials: "include" });
         if (statsRes.ok) {
           const stats = await statsRes.json();
           setAssignmentsUsed(stats.assignments_used ?? 0);
@@ -336,7 +331,7 @@ export default function ClientSearchPage() {
 
         // Pre-load existing assigned jobs to populate the "Assigned ✓" state
         // and prevent duplicates
-        const jobsRes = await fetch("/api/client/jobs", { headers });
+        const jobsRes = await fetch("/api/client/jobs", { credentials: "include" });
         if (jobsRes.ok) {
           const jobsData = await jobsRes.json();
           const existingJobs = Array.isArray(jobsData)
@@ -357,7 +352,7 @@ export default function ClientSearchPage() {
         }
 
         // Search history from backend
-        const histRes = await fetch("/api/client/search-history", { headers });
+        const histRes = await fetch("/api/client/search-history", { credentials: "include" });
         if (histRes.ok) {
           const histData = await histRes.json();
           const backendHistory = Array.isArray(histData) ? histData : histData?.data ?? [];
@@ -410,16 +405,10 @@ export default function ClientSearchPage() {
     // Persist to backend and update stats
     (async () => {
       try {
-        const { getClientToken } = await import("../../lib/clientAuth");
-        const token = getClientToken();
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        };
-
         const res = await fetch("/api/client/search-history", {
           method: "POST",
-          headers,
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             query_params: currentForm,
             results: newJobs,
@@ -429,7 +418,7 @@ export default function ClientSearchPage() {
 
         if (res.ok) {
           // Re-sync quota from backend to ensure exactness
-          const statsRes = await fetch("/api/client/jobs/stats", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+          const statsRes = await fetch("/api/client/jobs/stats", { credentials: "include" });
           if (statsRes.ok) {
             const stats = await statsRes.json();
             setSearchAttemptsUsed(stats.search_attempts_used ?? 0);
@@ -466,14 +455,10 @@ export default function ClientSearchPage() {
 
     setAssigningJobId(job.id);
     try {
-      const { getClientToken } = await import("../../lib/clientAuth");
-      const token = getClientToken();
       const res = await fetch("/api/client/jobs", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           job_title: job.title,
           company: job.company,
@@ -706,6 +691,7 @@ export default function ClientSearchPage() {
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
           body: JSON.stringify(searchPayload),
           signal: abortController.signal,
         });

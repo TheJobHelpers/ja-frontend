@@ -1,8 +1,7 @@
 // ─── JA Internal Admin Auth Helpers ─────────────────────────
-// Separate token key to avoid collisions with client or HR tokens
+// Now uses HttpOnly cookies managed by the browser.
 
-const JA_TOKEN_KEY = "ja_access_token";
-const JA_TOKEN_TYPE_KEY = "ja_token_type";
+const JA_LOGGED_IN_KEY = "ja_admin_is_logged_in";
 const JA_USER_KEY = "ja_user";
 
 export interface JaUser {
@@ -11,35 +10,18 @@ export interface JaUser {
   role: "admin" | "member";
 }
 
-function getCookie(name: string): string | null {
-  if (typeof window === "undefined") return null;
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  if (match) return decodeURIComponent(match[2]);
+export function getJaToken(): string | null {
+  // We can no longer read the token from JS if it is HttpOnly.
   return null;
 }
 
-function setCookie(name: string, value: string, days = 7) {
-  if (typeof window === "undefined") return;
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
-}
-
-function deleteCookie(name: string) {
-  if (typeof window === "undefined") return;
-  document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-}
-
-export function getJaToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return getCookie(JA_TOKEN_KEY) || localStorage.getItem(JA_TOKEN_KEY);
-}
-
-export function setJaToken(token: string, tokenType: string = "bearer", user?: JaUser): void {
-  localStorage.setItem(JA_TOKEN_KEY, token);
-  localStorage.setItem(JA_TOKEN_TYPE_KEY, tokenType);
-  setCookie(JA_TOKEN_KEY, token);
-  if (user) {
-    localStorage.setItem(JA_USER_KEY, JSON.stringify(user));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function setJaToken(_token: string, _tokenType: string = "bearer", user?: JaUser): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(JA_LOGGED_IN_KEY, "true");
+    if (user) {
+      localStorage.setItem(JA_USER_KEY, JSON.stringify(user));
+    }
   }
 }
 
@@ -55,29 +37,13 @@ export function getJaUser(): JaUser | null {
 }
 
 export function clearJaToken(): void {
-  localStorage.removeItem(JA_TOKEN_KEY);
-  localStorage.removeItem(JA_TOKEN_TYPE_KEY);
-  localStorage.removeItem(JA_USER_KEY);
-  deleteCookie(JA_TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(JA_LOGGED_IN_KEY);
+    localStorage.removeItem(JA_USER_KEY);
+  }
 }
 
 export function isJaAuthenticated(): boolean {
-  const token = getJaToken();
-  if (!token) return false;
-
-  try {
-    const parts = token.split(".");
-    if (parts.length === 3) {
-      const payloadStr = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-      const payload = JSON.parse(payloadStr);
-      if (payload.exp && Date.now() >= payload.exp * 1000) {
-        clearJaToken();
-        return false;
-      }
-    }
-  } catch {
-    // Ignore decode errors, token might be opaque
-  }
-
-  return true;
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(JA_LOGGED_IN_KEY) === "true";
 }

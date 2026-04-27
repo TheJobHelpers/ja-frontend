@@ -47,12 +47,12 @@ function buildHeaders(token: string | null, extraHeaders?: Record<string, string
  */
 export async function apiGet<T>(
   url: string,
-  token: string | null = null,
   extraHeaders?: Record<string, string>
 ): Promise<T> {
   const response = await fetch(url, {
     method: "GET",
-    headers: buildHeaders(token, extraHeaders),
+    headers: buildHeaders(null, extraHeaders),
+    credentials: "include",
   });
   return handleResponse<T>(response);
 }
@@ -63,12 +63,12 @@ export async function apiGet<T>(
 export async function apiPost<T>(
   url: string,
   body: unknown,
-  token: string | null = null,
   extraHeaders?: Record<string, string>
 ): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
-    headers: buildHeaders(token, extraHeaders),
+    headers: buildHeaders(null, extraHeaders),
+    credentials: "include",
     body: JSON.stringify(body),
   });
   return handleResponse<T>(response);
@@ -80,12 +80,29 @@ export async function apiPost<T>(
 export async function apiPut<T>(
   url: string,
   body: unknown,
-  token: string | null = null,
   extraHeaders?: Record<string, string>
 ): Promise<T> {
   const response = await fetch(url, {
     method: "PUT",
-    headers: buildHeaders(token, extraHeaders),
+    headers: buildHeaders(null, extraHeaders),
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(response);
+}
+
+/**
+ * Typed PATCH request
+ */
+export async function apiPatch<T>(
+  url: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>
+): Promise<T> {
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: buildHeaders(null, extraHeaders),
+    credentials: "include",
     body: JSON.stringify(body),
   });
   return handleResponse<T>(response);
@@ -96,12 +113,12 @@ export async function apiPut<T>(
  */
 export async function apiDelete<T>(
   url: string,
-  token: string | null = null,
   extraHeaders?: Record<string, string>
 ): Promise<T> {
   const response = await fetch(url, {
     method: "DELETE",
-    headers: buildHeaders(token, extraHeaders),
+    headers: buildHeaders(null, extraHeaders),
+    credentials: "include",
   });
   return handleResponse<T>(response);
 }

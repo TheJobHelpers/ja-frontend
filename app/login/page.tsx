@@ -38,61 +38,28 @@ export default function ClientLoginPage() {
       return;
     }
 
-    // Mock client credentials (used when backend is unavailable)
-    const MOCK_CLIENTS = [
-      { email: "client@tjh.com", password: "client123", name: "John Doe" },
-      { email: "demo@tjh.com", password: "demo123", name: "Demo User" },
-    ];
-
     try {
-      // Try API first
-      let token = "";
-      let tokenType = "bearer";
-      let apiWorked = false;
+      const response = await fetch("/api/client/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      try {
-        const response = await fetch("/api/client/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
+      if (response.ok) {
+        const data = await response.json();
+        const token = data.access_token;
+        const tokenType = data.token_type || "bearer";
+        
+        setClientToken(token, tokenType);
+        setSuccess(true);
 
-        if (response.ok) {
-          const data = await response.json();
-          token = data.access_token;
-          tokenType = data.token_type || "bearer";
-          apiWorked = true;
-        } else if (response.status === 401) {
-          throw new Error("Invalid email or password");
-        }
-      } catch (apiErr: unknown) {
-        // If it's an auth error, rethrow
-        if (apiErr instanceof Error && apiErr.message === "Invalid email or password") {
-          throw apiErr;
-        }
-        // Otherwise API is unreachable — fall through to mock
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 1000);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Invalid email or password");
       }
-
-      // Fallback: client-side mock auth
-      if (!apiWorked) {
-        const mockUser = MOCK_CLIENTS.find(
-          (u) => u.email === email && u.password === password
-        );
-
-        if (!mockUser) {
-          throw new Error("Invalid email or password");
-        }
-
-        // Generate a simple mock token
-        token = `mock_${btoa(JSON.stringify({ sub: email, name: mockUser.name, exp: Date.now() + 86400000 }))}`;
-      }
-
-      setClientToken(token, tokenType);
-      setSuccess(true);
-
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1000);
     } catch (err: unknown) {
       const message =
         err instanceof Error

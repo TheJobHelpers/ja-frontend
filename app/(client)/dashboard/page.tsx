@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { apiGet } from "../../lib/api";
-import { getClientToken } from "../../lib/clientAuth";
 import { SkeletonBox } from "../../components/Skeleton";
 
 interface Job {
@@ -90,13 +89,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadData() {
-      const token = getClientToken();
-      if (!token) return;
       try {
         const [userRes, jobsRes, statsRes] = await Promise.all([
-          apiGet<{ full_name?: string; name?: string }>("/api/client/auth/me", token).catch(() => null),
-          apiGet<Job[] | { jobs: Job[] } | { data: Job[] }>("/api/client/jobs", token).catch(() => []),
-          apiGet<{ assignments_used?: number; max_assignments?: number }>("/api/client/jobs/stats", token).catch(() => null),
+          apiGet<{ full_name?: string; name?: string }>("/api/client/auth/me").catch(() => null),
+          apiGet<Job[] | { jobs: Job[] } | { data: Job[] }>("/api/client/jobs").catch(() => []),
+          apiGet<{ assignments_used?: number; max_assignments?: number }>("/api/client/jobs/stats").catch(() => null),
         ]);
         const nameToUse = userRes?.name || userRes?.full_name;
         if (nameToUse) setUserName(nameToUse.split(" ")[0]);
@@ -134,7 +131,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-6 lg:space-y-8 relative overflow-hidden select-none animate-in fade-in duration-700">
+    <div className="flex flex-col space-y-6 lg:space-y-8 pb-10 relative select-none animate-in fade-in duration-700">
       {/* Background Aura */}
       <div className="fixed top-[-10%] right-[-10%] w-[80vw] h-[80vw] lg:w-[50vw] lg:h-[50vw] bg-violet-500/5 dark:bg-violet-600/[0.03] blur-[120px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-10%] left-[-10%] w-[60vw] h-[60vw] lg:w-[40vw] lg:h-[40vw] bg-emerald-500/5 dark:bg-emerald-600/[0.03] blur-[120px] rounded-full pointer-events-none" />
@@ -167,7 +164,7 @@ export default function DashboardPage() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative z-10">
         
         {/* Left Column: Recent Workstream */}
-        <div className="lg:col-span-8 flex flex-col bg-white/50 dark:bg-zinc-900/30 backdrop-blur-3xl border border-slate-300/60 dark:border-zinc-800/60 rounded-[2rem] sm:rounded-[3rem] shadow-xl dark:shadow-2xl overflow-hidden group transition-all duration-500">
+        <div className="lg:col-span-8 flex flex-col bg-white/50 dark:bg-zinc-900/30 backdrop-blur-3xl border border-slate-300/60 dark:border-zinc-800/60 rounded-[2rem] sm:rounded-[3rem] shadow-xl dark:shadow-2xl overflow-visible group transition-all duration-500">
            <div className="px-6 sm:px-10 py-6 sm:py-8 border-b border-slate-200/40 dark:border-zinc-800/40 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-950/20">
               <div className="flex items-center gap-4">
                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
@@ -214,7 +211,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Column: Platform Guide */}
-        <div className="lg:col-span-4 flex flex-col bg-white/50 dark:bg-zinc-900/30 backdrop-blur-3xl border border-slate-200/60 dark:border-zinc-800/60 rounded-[2rem] sm:rounded-[3rem] shadow-xl dark:shadow-2xl overflow-hidden transition-all duration-500">
+        <div className="lg:col-span-4 flex flex-col bg-white/50 dark:bg-zinc-900/30 backdrop-blur-3xl border border-slate-200/60 dark:border-zinc-800/60 rounded-[2rem] sm:rounded-[3rem] shadow-xl dark:shadow-2xl overflow-visible transition-all duration-500">
            <div className="px-6 sm:px-10 py-6 sm:py-8 border-b border-slate-200/40 dark:border-zinc-800/40 bg-slate-50/50 dark:bg-zinc-950/20">
               <div className="flex items-center gap-4">
                  <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.3)]" />

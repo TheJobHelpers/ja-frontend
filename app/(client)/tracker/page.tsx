@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { apiGet } from "../../lib/api";
-import { getClientToken } from "../../lib/clientAuth";
+import { apiGet, apiPost, apiPatch } from "../../lib/api";
+
 import { SkeletonBox } from "../../components/Skeleton";
 import { Toast } from "../../components/Toast";
 
@@ -117,12 +117,10 @@ export default function TrackerPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   const loadData = async (includeArchived: boolean = false) => {
-    const token = getClientToken();
-    if (!token) { setLoading(false); return; }
     try {
       const [jobsRes, statsRes] = await Promise.all([
-        apiGet<Job[] | { jobs: Job[] } | { data: Job[] }>(`/api/client/jobs${includeArchived ? '?archived=true' : ''}`, token),
-        apiGet<{ assignments_used?: number; max_assignments?: number; search_attempts_used?: number; max_search_attempts?: number }>("/api/client/jobs/stats", token).catch(() => null)
+        apiGet<Job[] | { jobs: Job[] } | { data: Job[] }>(`/api/client/jobs${includeArchived ? '?archived=true' : ''}`),
+        apiGet<{ assignments_used?: number; max_assignments?: number; search_attempts_used?: number; max_search_attempts?: number }>("/api/client/jobs/stats").catch(() => null)
       ]);
       let data: Job[] = [];
       if (Array.isArray(jobsRes)) {
@@ -144,34 +142,20 @@ export default function TrackerPage() {
   useEffect(() => { loadData(showArchived); }, [showArchived]);
 
   const handleArchive = async (jobId: string) => {
-    const token = getClientToken();
-    if (!token) return;
     try {
-      const res = await fetch(`/api/client/jobs/${jobId}/archive`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setToast({ message: "Job archived", type: "success" });
-        loadData(showArchived);
-      }
+      await apiPost(`/api/client/jobs/${jobId}/archive`, {});
+      setToast({ message: "Job archived", type: "success" });
+      loadData(showArchived);
     } catch {
       setToast({ message: "Failed to archive", type: "error" });
     }
   };
 
   const handleRestore = async (jobId: string) => {
-    const token = getClientToken();
-    if (!token) return;
     try {
-      const res = await fetch(`/api/client/jobs/${jobId}/restore`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setToast({ message: "Job restored", type: "success" });
-        loadData(showArchived);
-      }
+      await apiPost(`/api/client/jobs/${jobId}/restore`, {});
+      setToast({ message: "Job restored", type: "success" });
+      loadData(showArchived);
     } catch {
       setToast({ message: "Failed to restore", type: "error" });
     }
@@ -191,58 +175,36 @@ export default function TrackerPage() {
 
   const handleAddJob = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = getClientToken();
-    if (!token) return;
     if (!newJob.job_title || !newJob.company) { setToast({ message: "Job Title and Company are required", type: "error" }); return; }
     setIsCreatingJob(true);
     try {
-      const res = await fetch("/api/client/jobs", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(newJob)
-      });
-      if (res.ok) {
-        setToast({ message: "Job added successfully", type: "success" });
-        setShowAddJobModal(false);
-        setNewJob({ job_title: "", company: "", location: "", apply_link: "" });
-        loadData();
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        setToast({ message: errData.detail || errData.message || "Failed to add job", type: "error" });
-      }
+      await apiPost("/api/client/jobs", newJob);
+      setToast({ message: "Job added successfully", type: "success" });
+      setShowAddJobModal(false);
+      setNewJob({ job_title: "", company: "", location: "", apply_link: "" });
+      loadData();
     } catch (err) {
       console.error("Add job error:", err);
-      setToast({ message: "Network error. Please try again.", type: "error" });
+      const message = err instanceof Error ? err.message : "Failed to add job";
+      setToast({ message, type: "error" });
     } finally { setIsCreatingJob(false); }
   };
 
   const handleSaveNote = async () => {
     if (!editingNoteJob) return;
-    const token = getClientToken();
-    if (!token) return;
     setIsSavingNote(true);
     try {
-      const res = await fetch(`/api/client/jobs/${editingNoteJob.id}/notes`, {
-        method: "PATCH",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: noteContent })
-      });
-      if (res.ok) {
-        setJobs(prev => prev.map(j => j.id === editingNoteJob.id ? { ...j, notes: noteContent } : j));
-        setToast({ message: "Note saved", type: "success" });
-        setEditingNoteJob(null);
-      } else {
-        setToast({ message: "Failed to save note", type: "error" });
-      }
+      await apiPatch(`/api/client/jobs/${editingNoteJob.id}/notes`, { notes: noteContent });
+      setJobs(prev => prev.map(j => j.id === editingNoteJob.id ? { ...j, notes: noteContent } : j));
+      setToast({ message: "Note saved", type: "success" });
+      setEditingNoteJob(null);
     } catch (err) {
       console.error("Save note error:", err);
-      setToast({ message: "Network error while saving note", type: "error" });
+      setToast({ message: "Failed to save note", type: "error" });
     } finally { setIsSavingNote(false); }
   };
 
   const updateJobStatus = async (jobId: string, newStatus: string) => {
-    const token = getClientToken();
-    if (!token) return;
     const job = jobs.find(j => j.id === jobId);
     if (!job || job.status === newStatus) return;
     
@@ -256,15 +218,7 @@ export default function TrackerPage() {
     // Optimistically update both status and handled_by
     setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus, handled_by: "client" } : j));
     try {
-      const res = await fetch(`/api/client/jobs/${jobId}/status`, {
-        method: "PATCH",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || errData.message || "Failed to update status");
-      }
+      await apiPatch(`/api/client/jobs/${jobId}/status`, { status: newStatus });
     } catch (err) {
       setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: originalStatus, handled_by: originalHandledBy } : j));
       const message = err instanceof Error ? err.message : "Connection failed. Please try again.";
