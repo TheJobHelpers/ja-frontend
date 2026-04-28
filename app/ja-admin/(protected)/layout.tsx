@@ -20,7 +20,6 @@ export default function JaAdminProtectedLayout({ children }: { children: React.R
   useEffect(() => {
     if (!isMounted) return;
 
-    const authed = isJaAuthenticated();
     const checkAuth = () => {
       const authed = isJaAuthenticated();
       console.log(`[JA Layout] Auth Check: ${authed ? "Authenticated" : "Not Authenticated"}`);

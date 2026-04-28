@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "ja_admin_access_token";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     // Read the token to call backend logout (best effort — don't fail if it can't)
     const cookieStore = await cookies();
