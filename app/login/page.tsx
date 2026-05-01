@@ -144,7 +144,7 @@ export default function ClientLoginPage() {
           {/* Bottom: Stats / social proof */}
           <div className="flex items-center gap-6 border-t border-white/10 pt-6">
             <div>
-              <p className="text-2xl font-bold text-white">3</p>
+              <p className="text-2xl font-bold text-white">5</p>
               <p className="text-[11px] text-zinc-400">Search engines</p>
             </div>
             <div className="h-8 w-px bg-white/10" />

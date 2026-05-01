@@ -31,12 +31,114 @@ interface FormData {
   city: string;
   country: string;
   datePosted: string;
+  startDate: string;
+  endDate: string;
 }
 
 interface Country {
   code: string;
   name: string;
 }
+
+type SearchSource =
+  | "jsearch"
+  | "indeed"
+  | "linkedin"
+  | "linkedin/v2"
+  | "reliefweb/v2"
+  ;
+
+const SOURCE_THEME: Record<
+  SearchSource,
+  {
+    label: string;
+    dotClass: string;
+    buttonClass: string;
+    progressOuterClass: string;
+    progressDotClass: string;
+    progressTrackClass: string;
+    progressFillClass: string;
+  }
+> = {
+  jsearch: {
+    label: "JSearch",
+    dotClass: "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]",
+    buttonClass:
+      "border-sky-400/60 bg-slate-900/60 shadow-[0_10px_35px_rgba(56,189,248,0.85)] hover:border-sky-400/80 hover:bg-slate-900/70",
+    progressOuterClass: "border-sky-500/30 bg-sky-950/20 text-sky-200",
+    progressDotClass: "bg-sky-400",
+    progressTrackClass: "bg-sky-900/50",
+    progressFillClass: "bg-sky-400",
+  },
+  indeed: {
+    label: "Indeed",
+    dotClass: "bg-emerald-400",
+    buttonClass:
+      "border-emerald-400/60 bg-slate-900/60 shadow-[0_10px_30px_rgba(6,95,70,0.85)] hover:border-emerald-400/80 hover:bg-slate-900/70",
+    progressOuterClass: "border-emerald-500/30 bg-emerald-950/20 text-emerald-200",
+    progressDotClass: "bg-emerald-400",
+    progressTrackClass: "bg-emerald-900/50",
+    progressFillClass: "bg-emerald-400",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    dotClass: "bg-indigo-400",
+    buttonClass:
+      "border-indigo-400/60 bg-slate-900/70 shadow-[0_10px_30px_rgba(30,64,175,0.75)] hover:border-indigo-400/80 hover:bg-slate-900/80",
+    progressOuterClass: "border-blue-500/30 bg-blue-950/20 text-blue-200",
+    progressDotClass: "bg-blue-400",
+    progressTrackClass: "bg-blue-900/50",
+    progressFillClass: "bg-blue-400",
+  },
+  "linkedin/v2": {
+    label: "LinkedIn v2",
+    dotClass: "bg-cyan-400",
+    buttonClass:
+      "border-cyan-400/60 bg-slate-900/70 shadow-[0_10px_30px_rgba(34,211,238,0.28)] hover:border-cyan-400/80 hover:bg-slate-900/80",
+    progressOuterClass: "border-cyan-500/30 bg-cyan-950/20 text-cyan-200",
+    progressDotClass: "bg-cyan-400",
+    progressTrackClass: "bg-cyan-900/50",
+    progressFillClass: "bg-cyan-400",
+  },
+  "reliefweb/v2": {
+    label: "ReliefWeb v2",
+    dotClass: "bg-teal-400",
+    buttonClass:
+      "border-teal-400/60 bg-slate-900/70 shadow-[0_10px_30px_rgba(20,184,166,0.3)] hover:border-teal-400/80 hover:bg-slate-900/80",
+    progressOuterClass: "border-teal-500/30 bg-teal-950/20 text-teal-200",
+    progressDotClass: "bg-teal-400",
+    progressTrackClass: "bg-teal-900/50",
+    progressFillClass: "bg-teal-400",
+  },
+  
+};
+
+const SOURCE_ORDER: SearchSource[] = [
+  "jsearch",
+  "linkedin",
+  "indeed",
+  "linkedin/v2",
+  "reliefweb/v2",
+];
+
+const LEGACY_SOURCES = new Set<SearchSource>(["jsearch", "linkedin", "indeed"]);
+const V2_SOURCES = new Set<SearchSource>(["linkedin/v2", "reliefweb/v2"]);
+
+const getSourceLabel = (source: string | null | undefined) => {
+  if (!source || !(source in SOURCE_THEME)) return "Multiple";
+  return SOURCE_THEME[source as SearchSource].label;
+};
+
+const getSourceTheme = (source: string | null | undefined) => {
+  if (!source || !(source in SOURCE_THEME)) return null;
+  return SOURCE_THEME[source as SearchSource];
+};
+
+const isStreamingSource = (source: SearchSource) => LEGACY_SOURCES.has(source);
+
+const isV2Source = (source: string | null | undefined) => !!source && V2_SOURCES.has(source as SearchSource);
+
+const isReliefWebV2 = (source: string | null | undefined) => source === "reliefweb/v2";
 
 const COUNTRIES: Country[] = [
   { code: "AF", name: "Afghanistan" }, { code: "AL", name: "Albania" }, { code: "DZ", name: "Algeria" }, { code: "AD", name: "Andorra" }, { code: "AO", name: "Angola" },
@@ -87,15 +189,15 @@ export default function AdminSearchPage() {
 
   const [formData, setFormData] = useState<FormData>({
     jobTitle: "", industry: "", salaryMin: "", salaryMax: "",
-    jobType: "", employmentType: "", city: "", country: "", datePosted: "",
+    jobType: "", employmentType: "", city: "", country: "", datePosted: "", startDate: "", endDate: "",
   });
 
-  const [selectedSource, setSelectedSource] = useState<"jsearch" | "indeed" | "linkedin" | null>(null);
+  const [selectedSource, setSelectedSource] = useState<SearchSource | null>(null);
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeService, setActiveService] = useState<"jsearch" | "indeed" | "linkedin" | null>(null);
+  const [activeService, setActiveService] = useState<SearchSource | null>(null);
   const [searchProgress, setSearchProgress] = useState<{ count: number; maxResults: number; status: string } | null>(null);
   const [indeedRunId, setIndeedRunId] = useState<string | null>(null);
   const [streamController, setStreamController] = useState<AbortController | null>(null);
@@ -205,7 +307,7 @@ export default function AdminSearchPage() {
   const restoreFromHistory = (item: { formData: FormData; jobs: Job[]; service: string }) => {
     setFormData(item.formData);
     setJobs(item.jobs);
-    setActiveService(item.service as "jsearch" | "indeed" | "linkedin");
+    setActiveService(item.service as SearchSource);
     setSearchProgress(null);
     setLoading(false);
     localStorage.setItem("tjh_admin_search_cache", JSON.stringify({ jobs: item.jobs, service: item.service, formData: item.formData }));
@@ -268,7 +370,7 @@ export default function AdminSearchPage() {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const source = activeService === "jsearch" ? "jsearch" : activeService === "indeed" ? "indeed" : activeService === "linkedin" ? "linkedin" : "jobs";
+    const source = activeService ? activeService.replace("/", "-") : "jobs";
     link.href = url;
     link.setAttribute("download", `admin-jobs-${source}-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
@@ -296,7 +398,7 @@ export default function AdminSearchPage() {
   };
 
   const handleSearch = async (
-    service: "jsearch" | "indeed" | "linkedin",
+    service: SearchSource,
     bypassCache = false,
     looseSearch = false
   ) => {
@@ -315,21 +417,42 @@ export default function AdminSearchPage() {
     }
 
     try {
-      const searchPayload = {
-        ...formData,
-        salaryMin: formData.salaryMin ? formData.salaryMin.replace(/,/g, "") : "",
-        salaryMax: formData.salaryMax ? formData.salaryMax.replace(/,/g, "") : "",
-        employmentType: formData.employmentType || "",
-      };
+      const searchPayload = isReliefWebV2(service)
+        ? {
+            jobTitle: formData.jobTitle,
+            startDate: formData.startDate ? formData.startDate.replace(/-/g, "") : "",
+            endDate: formData.endDate ? formData.endDate.replace(/-/g, "") : "",
+          }
+        : isV2Source(service)
+        ? {
+            jobTitle: formData.jobTitle,
+            industry: formData.industry || "",
+            salaryMin: formData.salaryMin ? formData.salaryMin.replace(/,/g, "") : "",
+            salaryMax: formData.salaryMax ? formData.salaryMax.replace(/,/g, "") : "",
+            jobType: formData.jobType || "",
+            employmentType: formData.employmentType || "",
+            city: formData.city || "",
+            country: formData.country || "",
+            datePosted: formData.datePosted || "",
+          }
+        : {
+            ...formData,
+            salaryMin: formData.salaryMin ? formData.salaryMin.replace(/,/g, "") : "",
+            salaryMax: formData.salaryMax ? formData.salaryMax.replace(/,/g, "") : "",
+            employmentType: formData.employmentType || "",
+          };
 
       const abortController = new AbortController();
       setStreamController(abortController);
 
       // Build query string — append flags as needed
-      const params = new URLSearchParams({ stream: "true" });
+      const params = new URLSearchParams();
+      if (isStreamingSource(service)) {
+        params.set("stream", "true");
+      }
       if (bypassCache)  params.set("bypass_cache", "true");
       if (looseSearch)  params.set("loose_search", "true");
-      const endpoint = `/api/${service}?${params.toString()}`;
+      const endpoint = params.toString() ? `/api/${service}?${params.toString()}` : `/api/${service}`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -342,51 +465,66 @@ export default function AdminSearchPage() {
         throw new Error(errorData.error || `Failed to search with ${service}`);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("Response body is not readable");
+      if (isStreamingSource(service)) {
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) throw new Error("Response body is not readable");
 
-      let buffer = "";
-      let streamError = null;
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.trim() && line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.type === "start") {
-                  setSearchProgress({ count: 0, maxResults: service === "jsearch" ? 15 : 20, status: "starting" });
-                } else if (data.type === "progress") {
-                  setSearchProgress({ count: data.count || 0, maxResults: data.max_results || (service === "jsearch" ? 15 : 20), status: data.status || "running" });
-                  if (data.run_id && service === "indeed") setIndeedRunId(data.run_id);
-                } else if (data.type === "complete") {
-                  const finalJobs = data.jobs || [];
-                  setJobs(finalJobs);
-                  setSearchProgress(null);
-                  if (finalJobs.length > 0) {
-                    updateCache(finalJobs, service, formData);
-                    setSidebarTab('results');
+        let buffer = "";
+        let streamError = null;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (line.trim() && line.startsWith("data: ")) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  if (data.type === "start") {
+                    setSearchProgress({ count: 0, maxResults: service === "jsearch" ? 15 : 20, status: "starting" });
+                  } else if (data.type === "progress") {
+                    setSearchProgress({ count: data.count || 0, maxResults: data.max_results || (service === "jsearch" ? 15 : 20), status: data.status || "running" });
+                    if (data.run_id && service === "indeed") setIndeedRunId(data.run_id);
+                  } else if (data.type === "complete") {
+                    const finalJobs = data.jobs || [];
+                    setJobs(finalJobs);
+                    setSearchProgress(null);
+                    if (finalJobs.length > 0) {
+                      updateCache(finalJobs, service, formData);
+                      setSidebarTab('results');
+                    }
+                    if (finalJobs.length === 0) setError("No jobs found. Try adjusting your search criteria.");
+                  } else if (data.type === "error") {
+                    streamError = new Error(data.message || "An error occurred");
+                    break;
                   }
-                  if (finalJobs.length === 0) setError("No jobs found. Try adjusting your search criteria.");
-                } else if (data.type === "error") {
-                  streamError = new Error(data.message || "An error occurred");
-                  break;
-                }
-              } catch (e) { console.error("Error parsing SSE data:", e); }
+                } catch (e) { console.error("Error parsing SSE data:", e); }
+              }
             }
+            if (streamError) break;
           }
-          if (streamError) break;
+        } catch (streamErr: unknown) {
+          if (streamErr instanceof Error && streamErr.name !== "AbortError") { streamError = streamErr; }
+          else { setSearchProgress(null); setLoading(false); return; }
         }
-      } catch (streamErr: unknown) {
-        if (streamErr instanceof Error && streamErr.name !== "AbortError") { streamError = streamErr; }
-        else { setSearchProgress(null); setLoading(false); return; }
+        if (streamError) throw streamError;
+      } else {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || `Failed to search with ${service}`);
+        }
+        const finalJobs = data.jobs || [];
+        setJobs(finalJobs);
+        setSearchProgress(null);
+        if (finalJobs.length > 0) {
+          updateCache(finalJobs, service, formData);
+          setSidebarTab('results');
+        }
+        if (finalJobs.length === 0) setError("No jobs found. Try adjusting your search criteria.");
       }
-      if (streamError) throw streamError;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "An error occurred while searching for jobs";
       setError(message);
@@ -409,6 +547,8 @@ export default function AdminSearchPage() {
   };
 
   const disabledSearch = loading || !formData.jobTitle.trim();
+  const activeTheme = getSourceTheme(activeService);
+  const selectedTheme = getSourceTheme(selectedSource);
 
   return (
     <div className="mx-auto flex lg:h-[calc(100vh-104px)] min-h-[calc(100vh-104px)] max-w-[1600px] flex-col gap-4 sm:gap-6">
@@ -456,35 +596,26 @@ export default function AdminSearchPage() {
             {/* Source Selector */}
             <div className="mb-8 rounded-2xl border border-white/10 bg-black/30 p-4 sm:p-5">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Step 1 — Select search source</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { key: "jsearch" as const, label: "JSearch", color: "sky", dot: "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]" },
-                  { key: "linkedin" as const, label: "LinkedIn", color: "indigo", dot: "bg-indigo-400" },
-                  { key: "indeed" as const, label: "Indeed", color: "emerald", dot: "bg-emerald-400" },
-                ] as const).map((src) => (
-                  <button key={src.key} type="button"
-                    onClick={() => {
-                      setSelectedSource(src.key);
-                      // Reset filters that the new source doesn't support
-                      // (all sources now support Industry)
-                      setFormData(prev => ({
-                        ...prev,
-                      }));
-                    }}
-                    className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
-                      selectedSource === src.key
-                        ? src.key === "jsearch"
-                          ? "border-sky-400/60 bg-sky-500/20 text-sky-200 ring-2 ring-sky-500/30"
-                          : src.key === "linkedin"
-                          ? "border-indigo-400/60 bg-indigo-500/20 text-indigo-200 ring-2 ring-indigo-500/30"
-                          : "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 ring-2 ring-emerald-500/30"
-                        : "border-zinc-700/60 bg-zinc-800/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === src.key ? src.dot : "bg-zinc-600"}`} />
-                    {src.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                {SOURCE_ORDER.map((sourceKey) => {
+                  const source = SOURCE_THEME[sourceKey];
+
+                  return (
+                    <button
+                      key={sourceKey}
+                      type="button"
+                      onClick={() => setSelectedSource(sourceKey)}
+                      className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
+                        selectedSource === sourceKey
+                          ? source.buttonClass
+                          : "border-zinc-700/60 bg-zinc-800/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === sourceKey ? source.dotClass : "bg-zinc-600"}`} />
+                      <span>{source.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -495,7 +626,67 @@ export default function AdminSearchPage() {
               {!selectedSource && (
                 <div className="text-center py-2 text-sm text-zinc-400">Select a search source above to configure filters</div>
               )}
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)]">
+              {isV2Source(selectedSource) ? (
+                <>
+                  <div className="rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                    Source-specific v2 filters
+                  </div>
+                  {isReliefWebV2(selectedSource) ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-3 sm:col-span-2">
+                        <label htmlFor="jobTitle" className="flex items-center justify-between text-xs font-medium text-zinc-200">
+                          <span>Role or title *</span>
+                          <span className="text-[11px] text-zinc-400">Required for ReliefWeb search</span>
+                        </label>
+                        <input type="text" id="jobTitle" name="jobTitle" value={formData.jobTitle} onChange={handleInputChange}
+                          placeholder="e.g., Consultant"
+                          className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3.5 py-2.5 text-sm text-zinc-50 outline-none ring-0 transition focus:border-teal-400/70 focus:ring-2 focus:ring-teal-500/50"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <label htmlFor="startDate" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Start date</label>
+                        <input type="date" id="startDate" name="startDate" value={formData.startDate} onChange={handleInputChange}
+                          className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-teal-400/70 focus:ring-2 focus:ring-teal-500/50"
+                        />
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <label htmlFor="endDate" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">End date</label>
+                        <input type="date" id="endDate" name="endDate" value={formData.endDate} onChange={handleInputChange}
+                          className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3 py-2 text-sm text-zinc-50 outline-none ring-0 transition focus:border-teal-400/70 focus:ring-2 focus:ring-teal-500/50"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)]">
+                      <div className="space-y-3">
+                        <label htmlFor="jobTitle" className="flex items-center justify-between text-xs font-medium text-zinc-200">
+                          <span>Role or title *</span>
+                          <span className="text-[11px] text-zinc-400">Required for v2 search</span>
+                        </label>
+                        <input type="text" id="jobTitle" name="jobTitle" value={formData.jobTitle} onChange={handleInputChange}
+                          placeholder="e.g., Staff Frontend Engineer"
+                          className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3.5 py-2.5 text-sm text-zinc-50 outline-none ring-0 transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/50"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label htmlFor="industry" className="flex items-center justify-between text-xs font-medium text-zinc-200">
+                          <span>Industry</span>
+                          <span className="text-[11px] text-zinc-400">Optional focus (fintech, AI, etc.)</span>
+                        </label>
+                        <input type="text" id="industry" name="industry" value={formData.industry} onChange={handleInputChange}
+                          placeholder="e.g., Developer tools / AI infra"
+                          className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3.5 py-2.5 text-sm text-zinc-50 outline-none ring-0 transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/50"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)]">
                 <div className="space-y-3">
                   <label htmlFor="jobTitle" className="flex items-center justify-between text-xs font-medium text-zinc-200">
                     <span>Role or title *</span>
@@ -517,9 +708,11 @@ export default function AdminSearchPage() {
                     className="w-full rounded-lg border border-white/30 bg-zinc-700/90 px-3.5 py-2.5 text-sm text-zinc-50 outline-none ring-0 transition focus:border-purple-400/70 focus:ring-2 focus:ring-purple-500/50"
                   />
                 </div>
-              </div>
+                </div>
+              )}
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {!isReliefWebV2(selectedSource) && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2.5">
                   <label htmlFor="salaryMin" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Min salary (USD/yr)</label>
                   <input type="text" id="salaryMin" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange}
@@ -569,9 +762,11 @@ export default function AdminSearchPage() {
                     <option value="month">Past month</option>
                   </select>
                 </div>
-              </div>
+                </div>
+              )}
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              {!isReliefWebV2(selectedSource) && (
+                <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-2.5">
                   <label htmlFor="city" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">City (optional)</label>
                   <input type="text" id="city" name="city" value={formData.city} onChange={handleInputChange}
@@ -642,7 +837,8 @@ export default function AdminSearchPage() {
                     Powered by curated job APIs. No spammy listings.
                   </p>
                 </div>
-              </div>
+                </div>
+              )}
 
               {/* Split Search / Stop button */}
               <div className="mt-4 pt-4 border-t border-white/5 flex flex-col xl:flex-row xl:items-center gap-4 justify-between">
@@ -670,22 +866,13 @@ export default function AdminSearchPage() {
                         onClick={() => selectedSource && handleSearch(selectedSource, false)}
                         disabled={disabledSearch || !selectedSource}
                         className={`flex-1 xl:flex-none inline-flex items-center justify-center gap-2 rounded-l-lg border-y border-l px-6 py-2.5 text-sm font-semibold text-zinc-50 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          selectedSource === "jsearch"
-                            ? "border-sky-400/60 bg-slate-900/60 shadow-[0_10px_35px_rgba(56,189,248,0.85)] hover:border-sky-400/80 hover:bg-slate-900/70"
-                            : selectedSource === "linkedin"
-                            ? "border-indigo-400/60 bg-slate-900/70 shadow-[0_10px_30px_rgba(30,64,175,0.75)] hover:border-indigo-400/80 hover:bg-slate-900/80"
-                            : selectedSource === "indeed"
-                            ? "border-emerald-400/60 bg-slate-900/60 shadow-[0_10px_30px_rgba(6,95,70,0.85)] hover:border-emerald-400/80 hover:bg-slate-900/70"
+                          selectedTheme
+                            ? selectedTheme.buttonClass
                             : "border-zinc-600 bg-zinc-800/60"
                         }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${
-                          selectedSource === "jsearch" ? "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]"
-                          : selectedSource === "linkedin" ? "bg-indigo-400"
-                          : selectedSource === "indeed" ? "bg-emerald-400"
-                          : "bg-zinc-500"
-                        }`} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${selectedTheme ? selectedTheme.dotClass : "bg-zinc-500"}`} />
                         {selectedSource
-                          ? `Search via ${selectedSource === "jsearch" ? "JSearch" : selectedSource === "linkedin" ? "LinkedIn" : "Indeed"}`
+                          ? `Search via ${getSourceLabel(selectedSource)}`
                           : "Select a source"}
                       </button>
 
@@ -695,12 +882,8 @@ export default function AdminSearchPage() {
                         disabled={disabledSearch || !selectedSource}
                         title="More search options"
                         className={`inline-flex items-center justify-center rounded-r-lg border-y border-r px-2.5 py-2.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          selectedSource === "jsearch"
-                            ? "border-sky-400/60 bg-slate-900/60 hover:bg-sky-900/40"
-                            : selectedSource === "linkedin"
-                            ? "border-indigo-400/60 bg-slate-900/70 hover:bg-indigo-900/40"
-                            : selectedSource === "indeed"
-                            ? "border-emerald-400/60 bg-slate-900/60 hover:bg-emerald-900/40"
+                          selectedTheme
+                            ? selectedTheme.buttonClass
                             : "border-zinc-600 bg-zinc-800/60"
                         }`}>
                         <svg
@@ -813,7 +996,7 @@ export default function AdminSearchPage() {
                              <div className="flex flex-col gap-2">
                                <div className="flex items-start justify-between gap-3">
                                  <h4 className="text-[13px] font-bold text-zinc-100 line-clamp-1">{item.formData.jobTitle || "Untitled Search"}</h4>
-                                 <span className="shrink-0 text-[8px] font-bold text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{item.service}</span>
+                                 <span className="shrink-0 text-[8px] font-bold text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{getSourceLabel(item.service)}</span>
                                </div>
                                <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2 text-[10px] text-zinc-500">
@@ -858,7 +1041,7 @@ export default function AdminSearchPage() {
                     </h2>
                     <p className="text-[11px] text-zinc-400 mt-0.5">
                       Source: <span className="text-zinc-300">
-                        {activeService === "jsearch" ? "JSearch" : activeService === "indeed" ? "Indeed" : activeService === "linkedin" ? "LinkedIn" : "Multiple"}
+                        {getSourceLabel(activeService)}
                       </span>
                     </p>
                   </div>
@@ -928,20 +1111,17 @@ export default function AdminSearchPage() {
       )}
 
       {searchProgress && activeService && (
-        <div className={`rounded-xl border px-4 py-3 text-sm shadow-[0_15px_35px_rgba(0,0,0,0.65)] sm:px-5 ${activeService === "indeed" ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-200"
-            : activeService === "jsearch" ? "border-sky-500/30 bg-sky-950/20 text-sky-200"
-              : "border-blue-500/30 bg-blue-950/20 text-blue-200"
+        <div className={`rounded-xl border px-4 py-3 text-sm shadow-[0_15px_35px_rgba(0,0,0,0.65)] sm:px-5 ${activeTheme ? activeTheme.progressOuterClass : "border-blue-500/30 bg-blue-950/20 text-blue-200"
           }`}>
           <div className="flex items-center gap-3">
-            <span className={`h-2 w-2 animate-pulse rounded-full ${activeService === "indeed" ? "bg-emerald-400" : activeService === "jsearch" ? "bg-sky-400" : "bg-blue-400"
-              }`} />
+            <span className={`h-2 w-2 animate-pulse rounded-full ${activeTheme ? activeTheme.progressDotClass : "bg-blue-400"}`} />
             <span>
-              Scanning {activeService === "indeed" ? "Indeed" : activeService === "jsearch" ? "JSearch" : "LinkedIn"}... {searchProgress.count} / {searchProgress.maxResults} results found
+              Scanning {getSourceLabel(activeService)}... {searchProgress.count} / {searchProgress.maxResults} results found
             </span>
           </div>
-          <div className={`mt-2 h-1.5 w-full overflow-hidden rounded-full ${activeService === "indeed" ? "bg-emerald-900/50" : activeService === "jsearch" ? "bg-sky-900/50" : "bg-blue-900/50"
+          <div className={`mt-2 h-1.5 w-full overflow-hidden rounded-full ${activeTheme ? activeTheme.progressTrackClass : "bg-blue-900/50"
             }`}>
-            <div className={`h-full transition-all duration-300 ${activeService === "indeed" ? "bg-emerald-400" : activeService === "jsearch" ? "bg-sky-400" : "bg-blue-400"
+            <div className={`h-full transition-all duration-300 ${activeTheme ? activeTheme.progressFillClass : "bg-blue-400"
               }`} style={{ width: `${Math.min((searchProgress.count / searchProgress.maxResults) * 100, 100)}%` }} />
           </div>
         </div>

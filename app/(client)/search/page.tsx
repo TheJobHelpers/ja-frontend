@@ -33,12 +33,125 @@ interface FormData {
   city: string;
   country: string;
   datePosted: string;
+  startDate: string;
+  endDate: string;
 }
 
 interface Country {
   code: string;
   name: string;
 }
+
+type SearchSource =
+  | "jsearch"
+  | "indeed"
+  | "linkedin"
+  | "linkedin/v2"
+  | "reliefweb/v2"
+  ;
+
+const SOURCE_THEME: Record<
+  SearchSource,
+  {
+    label: string;
+    dotClass: string;
+    buttonClass: string;
+    progressOuterClass: string;
+    progressDotClass: string;
+    progressTrackClass: string;
+    progressFillClass: string;
+    stream: boolean;
+    comingSoon?: boolean;
+  }
+> = {
+  jsearch: {
+    label: "JSearch",
+    dotClass: "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]",
+    buttonClass:
+      "border-sky-400/60 bg-slate-900 dark:bg-slate-900/60 shadow-[0_10px_35px_rgba(56,189,248,0.4)] hover:bg-slate-800 dark:hover:bg-slate-900/70",
+    progressOuterClass:
+      "border-sky-500/30 bg-sky-50 dark:bg-sky-950/20 text-sky-600 dark:text-sky-200",
+    progressDotClass: "bg-sky-400",
+    progressTrackClass: "bg-sky-900/50",
+    progressFillClass: "bg-sky-400",
+    stream: true,
+  },
+  indeed: {
+    label: "Indeed",
+    dotClass: "bg-emerald-400",
+    buttonClass:
+      "border-emerald-400/60 bg-slate-900 dark:bg-slate-900/60 shadow-[0_10px_30px_rgba(6,95,70,0.4)] hover:bg-slate-800 dark:hover:bg-slate-900/70",
+    progressOuterClass:
+      "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-200",
+    progressDotClass: "bg-emerald-400",
+    progressTrackClass: "bg-emerald-900/50",
+    progressFillClass: "bg-emerald-400",
+    stream: true,
+  },
+  linkedin: {
+    label: "LinkedIn",
+    dotClass: "bg-indigo-400",
+    buttonClass:
+      "border-indigo-400/60 bg-slate-900 dark:bg-slate-900/70 shadow-[0_10px_30px_rgba(30,64,175,0.3)] hover:bg-slate-800 dark:hover:bg-slate-900/80",
+    progressOuterClass:
+      "border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-200",
+    progressDotClass: "bg-blue-400",
+    progressTrackClass: "bg-blue-900/50",
+    progressFillClass: "bg-blue-400",
+    stream: true,
+  },
+  "linkedin/v2": {
+    label: "LinkedIn v2",
+    dotClass: "bg-cyan-400",
+    buttonClass:
+      "border-cyan-400/60 bg-slate-900 dark:bg-slate-900/70 shadow-[0_10px_30px_rgba(34,211,238,0.28)] hover:bg-slate-800 dark:hover:bg-slate-900/80",
+    progressOuterClass:
+      "border-cyan-500/30 bg-cyan-50 dark:bg-cyan-950/20 text-cyan-600 dark:text-cyan-200",
+    progressDotClass: "bg-cyan-400",
+    progressTrackClass: "bg-cyan-900/50",
+    progressFillClass: "bg-cyan-400",
+    stream: false,
+  },
+  "reliefweb/v2": {
+    label: "ReliefWeb v2",
+    dotClass: "bg-teal-400",
+    buttonClass:
+      "border-teal-400/60 bg-slate-900 dark:bg-slate-900/70 shadow-[0_10px_30px_rgba(20,184,166,0.3)] hover:bg-slate-800 dark:hover:bg-slate-900/80",
+    progressOuterClass:
+      "border-teal-500/30 bg-teal-50 dark:bg-teal-950/20 text-teal-600 dark:text-teal-200",
+    progressDotClass: "bg-teal-400",
+    progressTrackClass: "bg-teal-900/50",
+    progressFillClass: "bg-teal-400",
+    stream: false,
+  },
+  
+};
+
+const SOURCE_ORDER: SearchSource[] = [
+  "jsearch",
+  "linkedin",
+  "indeed",
+  "linkedin/v2",
+  "reliefweb/v2",
+];
+
+const getSourceLabel = (source: string | null | undefined) => {
+  if (!source || !(source in SOURCE_THEME)) {
+    return "Multiple";
+  }
+
+  return SOURCE_THEME[source as SearchSource].label;
+};
+
+const getSourceTheme = (source: string | null | undefined) => {
+  if (!source || !(source in SOURCE_THEME)) {
+    return null;
+  }
+
+  return SOURCE_THEME[source as SearchSource];
+};
+
+const isStreamingSource = (source: SearchSource) => SOURCE_THEME[source].stream;
 
 // Complete list of countries with ISO codes (flags loaded from CDN)
 const COUNTRIES: Country[] = [
@@ -255,16 +368,18 @@ export default function ClientSearchPage() {
     city: "",
     country: "",
     datePosted: "",
+    startDate: "",
+    endDate: "",
   });
 
-  const [selectedSource, setSelectedSource] = useState<"jsearch" | "indeed" | "linkedin" | null>(null);
+  const [selectedSource, setSelectedSource] = useState<SearchSource | null>(null);
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeService, setActiveService] = useState<
-    "jsearch" | "indeed" | "linkedin" | null
+    SearchSource | null
   >(null);
   const [searchProgress, setSearchProgress] = useState<{
     count: number;
@@ -432,7 +547,7 @@ export default function ClientSearchPage() {
   const restoreFromHistory = (item: HistoryEntry) => {
     setFormData(item.formData);
     setJobs(item.jobs);
-    setActiveService(item.service as "jsearch" | "indeed" | "linkedin");
+    setActiveService(item.service as SearchSource);
     setSearchProgress(null);
     setLoading(false);
     setHasSearched(true);
@@ -589,14 +704,7 @@ export default function ClientSearchPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
 
-    const source =
-      activeService === "jsearch"
-        ? "jsearch"
-        : activeService === "indeed"
-        ? "indeed"
-        : activeService === "linkedin"
-        ? "linkedin"
-        : "jobs";
+    const source = activeService ? activeService.replace("/", "-") : "jobs";
 
     link.href = url;
     link.setAttribute(
@@ -644,7 +752,12 @@ export default function ClientSearchPage() {
     }));
   };
 
-  const handleSearch = async (service: "jsearch" | "indeed" | "linkedin") => {
+  const handleSearch = async (service: SearchSource) => {
+    if (SOURCE_THEME[service].comingSoon) {
+      setError("Indeed v2 is coming soon.");
+      return;
+    }
+
     // Guard: enforce search attempts per week
     if (searchAttemptsUsed >= maxSearchAttempts) {
       setError(`You've used all ${maxSearchAttempts} search attempts this week. You can still browse and assign jobs from your existing results using the "Search History" tab.`);
@@ -671,6 +784,14 @@ export default function ClientSearchPage() {
         salaryMin: formData.salaryMin ? formData.salaryMin.replace(/,/g, "") : "",
         salaryMax: formData.salaryMax ? formData.salaryMax.replace(/,/g, "") : "",
         employmentType: formData.employmentType || "",
+        startDate:
+          service === "reliefweb/v2" && formData.startDate
+            ? formData.startDate.replace(/-/g, "")
+            : formData.startDate || "",
+        endDate:
+          service === "reliefweb/v2" && formData.endDate
+            ? formData.endDate.replace(/-/g, "")
+            : formData.endDate || "",
       };
 
       // Use SSE streaming for all services
@@ -678,11 +799,7 @@ export default function ClientSearchPage() {
       const abortController = new AbortController();
       setStreamController(abortController);
 
-      if (
-        service === "indeed" ||
-        service === "jsearch" ||
-        service === "linkedin"
-      ) {
+      if (isStreamingSource(service)) {
         // Use streaming endpoint for all services (use query param for all)
         const endpoint = `/api/${service}?stream=true`;
 
@@ -788,7 +905,7 @@ export default function ClientSearchPage() {
           throw streamError;
         }
       } else {
-        // Regular fetch for jsearch and linkedin
+        // Regular fetch for non-stream sources
         const response = await fetch(`/api/${service}`, {
           method: "POST",
           headers: {
@@ -848,6 +965,8 @@ export default function ClientSearchPage() {
 
   const searchAttemptsExhausted = searchAttemptsUsed >= maxSearchAttempts;
   const disabledSearch = isStatsLoading || loading || !formData.jobTitle.trim() || searchAttemptsExhausted;
+  const activeTheme = getSourceTheme(activeService);
+  const selectedTheme = getSourceTheme(selectedSource);
 
   return (
     <div className="flex lg:h-[calc(100vh-160px)] min-h-0 flex-col gap-4 sm:gap-6">
@@ -857,7 +976,6 @@ export default function ClientSearchPage() {
         <button onClick={() => setMobileTab("search")} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileTab === "search" ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-lg" : "text-slate-400 dark:text-zinc-600"}`}>Search</button>
         <button onClick={() => setMobileTab("results")} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileTab === "results" ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-lg" : "text-slate-400 dark:text-zinc-600"}`}>Results ({jobs.length})</button>
       </div>
-      
       {/* Main Content Area */}
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-stretch lg:min-h-0 flex-1">
         <div className={`glass-panel relative flex flex-col lg:overflow-y-auto lg:custom-scrollbar pr-2 sm:pr-4 p-4 sm:p-8 ${mobileTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
@@ -895,29 +1013,38 @@ export default function ClientSearchPage() {
           <div className="mb-8 rounded-2xl border border-slate-300/50 dark:border-white/10 bg-white/80 dark:bg-black/30 p-4 sm:p-5 shadow-sm">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Step 1 — Select search source</p>
             <div className="grid grid-cols-3 gap-2">
-              {([
-                { key: "jsearch" as const, label: "JSearch", dot: "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]" },
-                { key: "linkedin" as const, label: "LinkedIn", dot: "bg-indigo-400" },
-                { key: "indeed" as const, label: "Indeed", dot: "bg-emerald-400" },
-              ] as const).map((src) => (
-                <button key={src.key} type="button"
-                  onClick={() => {
-                    setSelectedSource(src.key);
-                    setFormData(prev => ({
-                      ...prev,
-                      ...(src.key === "linkedin" ? { industry: "" } : {}),
-                    }));
-                  }}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
-                    selectedSource === src.key
-                      ? "border-sky-400/60 bg-sky-500/20 text-sky-600 dark:text-sky-200 ring-2 ring-sky-500/30"
-                      : "border-slate-200 dark:border-zinc-700/60 bg-white dark:bg-zinc-800/40 text-slate-500 dark:text-zinc-400 hover:border-slate-300 dark:hover:border-zinc-600 hover:text-slate-900 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === src.key ? src.dot : "bg-zinc-600"}`} />
-                  {src.label}
-                </button>
-              ))}
+              {SOURCE_ORDER.map((sourceKey) => {
+                const source = SOURCE_THEME[sourceKey];
+
+                return (
+                  <button
+                    key={sourceKey}
+                    type="button"
+                    disabled={source.comingSoon}
+                    onClick={() => {
+                      if (source.comingSoon) return;
+                      setSelectedSource(sourceKey);
+                      setFormData((prev) => ({
+                        ...prev,
+                        ...(sourceKey === "linkedin" ? { industry: "" } : {}),
+                      }));
+                    }}
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
+                      selectedSource === sourceKey
+                        ? source.buttonClass
+                        : "border-slate-200 dark:border-zinc-700/60 bg-white dark:bg-zinc-800/40 text-slate-500 dark:text-zinc-400 hover:border-slate-300 dark:hover:border-zinc-600 hover:text-slate-900 dark:hover:text-zinc-200"
+                    } ${source.comingSoon ? "cursor-not-allowed opacity-70" : ""}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === sourceKey ? source.dotClass : "bg-zinc-600"}`} />
+                    <span>{source.label}</span>
+                    {source.comingSoon && (
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+                        Coming soon
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1054,6 +1181,32 @@ export default function ClientSearchPage() {
                   document.body
                 )}
               </div>
+              {selectedSource === "reliefweb/v2" && (
+                <div className="sm:col-span-3 grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2.5">
+                    <label htmlFor="startDate" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">Start date</label>
+                    <input
+                      type="date"
+                      id="startDate"
+                      name="startDate"
+                      value={formData.startDate}
+                      onChange={handleInputChange}
+                      className="w-full rounded-lg border border-slate-300 dark:border-white/30 bg-white dark:bg-zinc-700/90 px-3 py-2 text-sm text-slate-900 dark:text-zinc-50 outline-none ring-0 transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/50 shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-2.5">
+                    <label htmlFor="endDate" className="block text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">End date</label>
+                    <input
+                      type="date"
+                      id="endDate"
+                      name="endDate"
+                      value={formData.endDate}
+                      onChange={handleInputChange}
+                      className="w-full rounded-lg border border-slate-300 dark:border-white/30 bg-white dark:bg-zinc-700/90 px-3 py-2 text-sm text-slate-900 dark:text-zinc-50 outline-none ring-0 transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/50 shadow-sm"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex items-end justify-end gap-2">
                 <p className="hidden text-[11px] text-zinc-400 sm:inline">Powered by curated job APIs. No spammy listings.</p>
               </div>
@@ -1119,20 +1272,16 @@ export default function ClientSearchPage() {
                   className={`w-full xl:w-auto inline-flex items-center justify-center gap-2 rounded-lg border px-8 py-2.5 text-sm font-semibold text-zinc-50 transition disabled:cursor-not-allowed disabled:opacity-50 ${
                     loading && activeService
                       ? "border-red-400/60 bg-red-600 dark:bg-red-900/60 shadow-[0_10px_30px_rgba(220,38,38,0.3)] hover:bg-red-700 dark:hover:bg-red-900/70"
-                      : selectedSource === "jsearch"
-                      ? "border-sky-400/60 bg-slate-900 dark:bg-slate-900/60 shadow-[0_10px_35px_rgba(56,189,248,0.4)] hover:bg-slate-800 dark:hover:bg-slate-900/70"
-                      : selectedSource === "linkedin"
-                      ? "border-indigo-400/60 bg-slate-900 dark:bg-slate-900/70 shadow-[0_10px_30px_rgba(30,64,175,0.3)] hover:bg-slate-800 dark:hover:bg-slate-900/80"
-                      : selectedSource === "indeed"
-                      ? "border-emerald-400/60 bg-slate-900 dark:bg-slate-900/60 shadow-[0_10px_30px_rgba(6,95,70,0.4)] hover:bg-slate-800 dark:hover:bg-slate-900/70"
+                      : selectedTheme
+                      ? selectedTheme.buttonClass
                       : "border-slate-300 dark:border-zinc-600 bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500"
                   }`}>
                   {loading && activeService ? (
                     <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span>Stop</span></span>
                   ) : (
                     <span className="inline-flex items-center gap-2">
-                      <span className={`h-1.5 w-1.5 rounded-full ${selectedSource === "jsearch" ? "bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,1)]" : selectedSource === "linkedin" ? "bg-indigo-400" : selectedSource === "indeed" ? "bg-emerald-400" : "bg-zinc-500"}`} />
-                      <span>{selectedSource ? `Search via ${selectedSource === "jsearch" ? "JSearch" : selectedSource === "linkedin" ? "LinkedIn" : "Indeed"}` : "Select a source"}</span>
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedTheme ? selectedTheme.dotClass : "bg-zinc-500"}`} />
+                      <span>{selectedSource ? `Search via ${getSourceLabel(selectedSource)}` : "Select a source"}</span>
                     </span>
                   )}
                 </button>
@@ -1173,7 +1322,7 @@ export default function ClientSearchPage() {
                            <div className="flex flex-col gap-2">
                              <div className="flex items-start justify-between gap-3">
                                <h4 className="text-[13px] font-bold text-slate-800 dark:text-zinc-200 line-clamp-1">{item.formData.jobTitle || "Untitled Search"}</h4>
-                               <span className="shrink-0 text-[8px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{item.service}</span>
+                               <span className="shrink-0 text-[8px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{getSourceLabel(item.service)}</span>
                              </div>
                              <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-[10px] text-zinc-500">
@@ -1220,7 +1369,7 @@ export default function ClientSearchPage() {
                   </h2>
                   <p className="text-[11px] text-zinc-400 mt-0.5">
                     Source: <span className="text-zinc-300">
-                      {activeService === "jsearch" ? "JSearch" : activeService === "indeed" ? "Indeed" : activeService === "linkedin" ? "LinkedIn" : "Multiple"}
+                      {getSourceLabel(activeService)}
                     </span>
                   </p>
                 </div>
@@ -1362,51 +1511,25 @@ export default function ClientSearchPage() {
       {searchProgress && activeService && (
         <div
           className={`rounded-xl border px-4 py-3 text-sm shadow-[0_15px_35px_rgba(0,0,0,0.65)] sm:px-5 ${
-            activeService === "indeed"
-              ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-200"
-              : activeService === "jsearch"
-              ? "border-sky-500/30 bg-sky-50 dark:bg-sky-950/20 text-sky-600 dark:text-sky-200"
-              : "border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-200"
+            activeTheme ? activeTheme.progressOuterClass : "border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-200"
           }`}
         >
           <div className="flex items-center gap-3">
             <span
-              className={`h-2 w-2 animate-pulse rounded-full ${
-                activeService === "indeed"
-                  ? "bg-emerald-400"
-                  : activeService === "jsearch"
-                  ? "bg-sky-400"
-                  : "bg-blue-400"
-              }`}
+              className={`h-2 w-2 animate-pulse rounded-full ${activeTheme ? activeTheme.progressDotClass : "bg-blue-400"}`}
             />
             <span>
               Scanning{" "}
-              {activeService === "indeed"
-                ? "Indeed"
-                : activeService === "jsearch"
-                ? "JSearch"
-                : "LinkedIn"}
+              {getSourceLabel(activeService)}
               ... {searchProgress.count} / {searchProgress.maxResults} results
               found
             </span>
           </div>
           <div
-            className={`mt-2 h-1.5 w-full overflow-hidden rounded-full ${
-              activeService === "indeed"
-                ? "bg-emerald-900/50"
-                : activeService === "jsearch"
-                ? "bg-sky-900/50"
-                : "bg-blue-900/50"
-            }`}
+            className={`mt-2 h-1.5 w-full overflow-hidden rounded-full ${activeTheme ? activeTheme.progressTrackClass : "bg-blue-900/50"}`}
           >
             <div
-              className={`h-full transition-all duration-300 ${
-                activeService === "indeed"
-                  ? "bg-emerald-400"
-                  : activeService === "jsearch"
-                  ? "bg-sky-400"
-                  : "bg-blue-400"
-              }`}
+              className={`h-full transition-all duration-300 ${activeTheme ? activeTheme.progressFillClass : "bg-blue-400"}`}
               style={{
                 width: `${Math.min(
                   (searchProgress.count / searchProgress.maxResults) * 100,
